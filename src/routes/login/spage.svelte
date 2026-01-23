@@ -4,10 +4,10 @@
 	import type { PageProps } from './$types';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button';
-	import * as Avatar from '$lib/components/ui/avatar/index.js';
 	import { Input } from '$lib/components/ui/input';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { X } from '@lucide/svelte';
+	import { SiDiscord, SiGithub, SiGoogle } from '@icons-pack/svelte-simple-icons';
 
 	let { data }: PageProps = $props();
 	let user = $state('');
@@ -64,7 +64,7 @@
 			</Card.Content>
 		{:else}
 			<Card.Header class="flex flex-col items-center gap-2">
-				<h1>Login to your account</h1>
+				<h1>Log in to your account</h1>
 			</Card.Header>
 			<Card.Content>
 				<div class="flex flex-col gap-2">
@@ -80,18 +80,34 @@
 					/>
 				</div>
 			</Card.Content>
-			<Card.Footer class="w-full flex-row flex-wrap gap-2">
+			<Card.Footer class="w-full flex-col flex-wrap gap-2">
 				<Button
 					variant="default"
-					class="flex-1"
+					class="w-full"
 					onclick={login}
 					disabled={!user || !passwd || !!error || loading}
 				>
 					{#if loading}
 						<Spinner class="mr-2" />
 					{/if}
-					Login
+					Log in
 				</Button>
+				<div class="mt-5 mb-1 flex w-full items-center">
+					<div class="h-1 flex-1 rounded-xl bg-muted-foreground"></div>
+					<span class="mx-3 bg-card text-xs text-muted-foreground"> Or continue with </span>
+					<div class="h-1 flex-1 rounded-xl bg-muted-foreground"></div>
+				</div>
+				<div class="flex w-full justify-center gap-4">
+					<Button variant="outline" size="icon">
+						<SiDiscord size={20} />
+					</Button>
+					<Button variant="outline" size="icon">
+						<SiGithub size={20} />
+					</Button>
+					<Button variant="outline" size="icon">
+						<SiGoogle size={20} />
+					</Button>
+				</div>
 			</Card.Footer>
 		{/if}
 	</Card.Root>
