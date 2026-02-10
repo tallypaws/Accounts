@@ -5,12 +5,13 @@ import { env } from '$env/dynamic/private';
 import bcrypt from 'bcrypt';
 import { accountDB, type Account } from './accounts';
 import crypto from 'node:crypto';
+import { sessionDB } from './sessions';
 
 const ALGO = 'aes-256-gcm';
 const totpMasterKey = env.TOTP_MASTER_KEY!;
 if (!totpMasterKey || totpMasterKey.length !== 64) {
 	console.error('set the TOTP_MASTER_KEY environment variable to a 32-byte hex string');
-	process.exit(1);	
+	process.exit(1);
 }
 const JWTPrivateKeyBase64 = env.JWT_KEY!;
 const JWTPrivateKey = Buffer.from(JWTPrivateKeyBase64, 'base64').toString('utf8');
@@ -74,7 +75,10 @@ export function hashOld(password: string): string {
 }
 
 export async function hash(string: string): Promise<string> {
-	const saltRounds = 12; //fucking evil
+	// const saltRounds = 12; //fucking evil
+	// const saltRounds = 200; // will kill your server
+	// const saltRounds = 1000; // crime against cryptography
+	const saltRounds = 10; // more normal
 	return new Promise((resolve, reject) => {
 		bcrypt.genSalt(saltRounds, function (err, salt) {
 			bcrypt.hash(string, salt, function (err, hash) {
@@ -156,7 +160,9 @@ export async function verifyCookies(cookies: Cookies): Promise<
 			account: null
 		};
 	}
+
 	const payload: any = verifySessionToken(sessionToken);
+
 	const { sub: userId, jti } = payload;
 
 	const account = await accountDB.getById(userId);
@@ -166,33 +172,31 @@ export async function verifyCookies(cookies: Cookies): Promise<
 			account: null
 		};
 	}
-	let session = account.sessions?.[jti];
-	if (!session) {
+	const session = await sessionDB.get(jti);
+	if (!session || session.accountId !== account.id) {
 		return { error: 'Session not found' };
 	}
 
 	if (Date.now() > session.expiresAt) {
-		delete account.sessions?.[jti];
-		await accountDB.setById(account.id, account);
+		await sessionDB.delete(session.id);
 		clearSessionToken(cookies);
 		return { error: 'Session token expired' };
 	}
 
 	const exp = (payload.exp as number) * 1000;
 	if (exp - Date.now() < replaceExpiringCookieWindow) {
-		const newSessionToken = generateSessionToken({ userId: account.id, jti: jti });
+		session.expiresAt = Date.now() + SessionTokenExpSeconds * 1000;
+		session.refreshAt = Date.now();
+		await sessionDB.set(session.id, session);
+
+		const newSessionToken = generateSessionToken({ userId: account.id, jti: session.id });
 		setSessionToken(cookies, newSessionToken);
-		account.sessions ??= {};
-		account.sessions[jti].expiresAt = Date.now() + SessionTokenExpSeconds * 1000;
-		account.sessions[jti].refreshAt = Date.now();
-		await accountDB.setById(account.id, account);
-		session = account.sessions[jti];
 	}
 
 	return { account, session: { ...session, id: jti } };
 }
 
-export const admins = new Set(['tallys']);
+export const admins = new Set(['tally']);
 
 export function genId() {
 	const timestamp = Date.now();

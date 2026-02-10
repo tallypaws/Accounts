@@ -6,8 +6,8 @@ import { accountDB } from '$lib/accounts';
 
 const schema = z.object({
 	displayName: z.string().min(2).max(100).or(z.string().length(0)).or(z.undefined()),
-    bio: z.string().max(10200).or(z.undefined()),
-    pronouns: z.string().max(100).or(z.undefined())
+	bio: z.string().max(10200).or(z.undefined()),
+	pronouns: z.string().max(100).or(z.undefined())
 });
 
 export const PATCH: RequestHandler = async ({ cookies, request }) => {
@@ -18,10 +18,7 @@ export const PATCH: RequestHandler = async ({ cookies, request }) => {
 
 	const body = await request.json();
 
-	const account = await accountDB.getById(cookieResult.account.id);
-	if (!account) {
-		return json({ error: 'Account not found' }, { status: 404 });
-	}
+	const account = cookieResult.account;
 
 	const parsed = schema.safeParse(body);
 	if (!parsed.success) {
@@ -29,8 +26,8 @@ export const PATCH: RequestHandler = async ({ cookies, request }) => {
 	}
 
 	account.displayName = parsed.data.displayName || undefined;
-    account.bio = parsed.data.bio || undefined;
-    account.pronouns = parsed.data.pronouns || undefined;
+	account.bio = parsed.data.bio || undefined;
+	account.pronouns = parsed.data.pronouns || undefined;
 	await accountDB.setById(account.id, account);
 
 	return json({ success: true });

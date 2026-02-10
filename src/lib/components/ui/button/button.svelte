@@ -1,5 +1,6 @@
 <script lang="ts" module>
 	import { cn, type WithElementRef } from '$lib/utils.js';
+	import { mode } from 'mode-watcher';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
 	import { type VariantProps, tv } from 'tailwind-variants';
@@ -44,8 +45,8 @@
 		fn: () => void;
 	};
 
-	export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
-		WithElementRef<HTMLAnchorAttributes> & {
+	export type ButtonProps = Omit<WithElementRef<HTMLButtonAttributes> &
+		WithElementRef<HTMLAnchorAttributes>, "color"> & {
 			variant?: ButtonVariant;
 			size?: ButtonSize;
 			onHeld?: HoldAction;
@@ -60,6 +61,19 @@
 						]
 				  >
 				| undefined;
+			/**
+			 * this overrides varient colors
+			 */
+			color?: {
+				light: {
+					fg: string;
+					bg: string;
+				};
+				dark: {
+					fg: string;
+					bg: string;
+				};
+			};
 		};
 </script>
 
@@ -76,6 +90,7 @@
 		children,
 		dynamic: child,
 		onclick,
+		color,
 		'on:click': oncclick,
 		...restProps
 	}: ButtonProps = $props();
@@ -141,8 +156,8 @@
 	function cancelHold() {
 		holding = false;
 
-		progress = 0
-		elapsed = 0
+		progress = 0;
+		elapsed = 0;
 
 		if (holdTimer) {
 			clearTimeout(holdTimer);
@@ -205,6 +220,12 @@
 		onpointercancel={cancelHold}
 		onclick={handleClick}
 		{...restProps}
+		style="
+		{mode.current === 'dark' && color && `color: ${color.dark.fg} ;`}
+		{mode.current === 'dark' && color && `background-color: ${color.dark.bg} ;`}
+		{mode.current === 'light' && color && `color: ${color.light.fg} ;`}
+		{mode.current === 'light' && color && `background-color: ${color.light.bg} ;`}
+"
 	>
 		{@render children?.()}
 		{@render child?.({

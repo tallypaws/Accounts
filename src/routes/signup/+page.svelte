@@ -4,6 +4,7 @@
 	import type { PageProps } from './$types';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button';
+	import * as Avatar from '$lib/components/ui/avatar/index.js';
 	import { Input } from '$lib/components/ui/input';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { X } from '@lucide/svelte';
@@ -21,9 +22,9 @@
 		criticalError = 'Invalid redirect url';
 		loading = false;
 	}
-	async function login() {
+	async function create() {
 		loading = true;
-		const res = await fetch('/api/accounts/login', {
+		const createres = await fetch('/api/accounts/create', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
@@ -33,14 +34,34 @@
 				password: passwd
 			})
 		});
-		const data = await res.json();
-		if (data.success) {
+		const createdata = await createres.json();
+		if (createdata.success) {
+		} else {
+			error = createdata.error;
+			loading = false;
+			return;
+		}
+		const loginres = await fetch('/api/accounts/login', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				username: user,
+				password: passwd
+			})
+		});
+		const logindata = await loginres.json();
+		if (logindata.success) {
 			const params = JSON.parse(page.url.searchParams.get('params') ?? '{}');
 			if (redirect) {
 				await goto(redirect + `?` + new URLSearchParams(params).toString());
 			}
 		} else {
-			error = data.error;
+			loading = false;
+
+			error = logindata.error;
+			return;
 		}
 		loading = false;
 	}
@@ -52,7 +73,7 @@
 <button onclick={login} disabled={!user || !passwd}>Login</button> -->
 
 <div class="flex h-screen w-screen items-center justify-center">
-	<Card.Root class=" w-[70%] max-w-124">
+	<Card.Root class="mx-4 w-full max-w-156 transition-[width] sm:w-[70%]">
 		{#if criticalError}
 			<Card.Header class="flex flex-col items-center gap-2">
 				<X class="size-20 text-destructive" />
@@ -64,7 +85,7 @@
 			</Card.Content>
 		{:else}
 			<Card.Header class="flex flex-col items-center gap-2">
-				<h1>Log in to your account</h1>
+				<h1>Create an account</h1>
 			</Card.Header>
 			<Card.Content>
 				<div class="flex flex-col gap-2">
@@ -80,31 +101,31 @@
 					/>
 				</div>
 			</Card.Content>
-			<Card.Footer class="w-full flex-col flex-wrap gap-2">
+						<Card.Footer class="w-full flex-col flex-wrap gap-2">
 				<Button
 					variant="default"
 					class="w-full"
-					onclick={login}
+					onclick={create}
 					disabled={!user || !passwd || !!error || loading}
 				>
 					{#if loading}
 						<Spinner class="mr-2" />
 					{/if}
-					Log in
+					Create Account
 				</Button>
 				<div class="mt-5 mb-1 flex w-full items-center">
 					<div class="h-1 flex-1 rounded-xl bg-muted-foreground"></div>
-					<span class="mx-3 bg-card text-xs text-muted-foreground"> Or continue with </span>
+					<span class="mx-3 bg-card text-xs text-muted-foreground"> Or create an account with </span>
 					<div class="h-1 flex-1 rounded-xl bg-muted-foreground"></div>
 				</div>
 				<div class="flex w-full justify-center gap-4">
-					<Button variant="outline" size="icon">
+					<Button variant="outline" size="icon" href="/login/provider/discord/authenticate?intent=create">
 						<SiDiscord size={20} />
 					</Button>
-					<Button variant="outline" size="icon">
+					<Button variant="outline" size="icon" disabled>
 						<SiGithub size={20} />
 					</Button>
-					<Button variant="outline" size="icon">
+					<Button variant="outline" size="icon" disabled>
 						<SiGoogle size={20} />
 					</Button>
 				</div>

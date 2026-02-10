@@ -43,6 +43,7 @@
 	},
 	"dependencies": {
 		"@icons-pack/svelte-simple-icons": "^6.5.0",
+		"@thetally/toolbox": "^1.0.0",
 		"@types/bcrypt": "^6.0.0",
 		"bcrypt": "^6.0.0",
 		"jsonwebtoken": "^9.0.3",

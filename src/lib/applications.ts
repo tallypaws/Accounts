@@ -105,14 +105,15 @@ export const appIconHandler = {
 			return false;
 		}
 	},
+	/**
+	 * 
+	 * only for when delete whole app!
+	 */
 	delete: async (appId: string) => {
 		try {
 			const folderPath = appIconHandler.getFolderPath(appId);
-			await fs.rm(folderPath, { recursive: true });	
-		} catch (error) {
-			
-		}
-
+			await fs.rm(folderPath, { recursive: true, force: true });
+		} catch (error) {}
 	},
 	getReadStream: async (path: string) => {
 		try {
@@ -130,3 +131,4 @@ export const appIconHandler = {
 	},
 	idToAngle: idToHue
 };
+``;

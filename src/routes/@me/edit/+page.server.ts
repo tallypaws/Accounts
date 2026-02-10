@@ -2,21 +2,20 @@ import type { PageServerLoad } from './$types';
 
 import { verifyCookies } from '$lib/auth';
 import { redirect } from '@sveltejs/kit';
+import { identityDB } from '$lib/identity';
 
-export const load = (async ({ cookies }) => {
+export const load = (async ({ cookies,parent }) => {
     const cookieResult = await verifyCookies(cookies);
     console.log('cookieResult', cookieResult);
     if ('error' in cookieResult || !cookieResult.account) {
         redirect(302, '/login');
     }
+
+
+    const identities = await identityDB.getAllForAccount(cookieResult.account.id);
+
     return {
-        account: {
-            id: cookieResult.account.id,
-            username: cookieResult.account.username,
-            displayName: cookieResult.account.displayName,
-            avatarHash: cookieResult.account.avatarHash,
-            pronouns: cookieResult.account.pronouns,
-            bio: cookieResult.account.bio
-        }
+        identities,
+        account: cookieResult.account
     };
 }) satisfies PageServerLoad;

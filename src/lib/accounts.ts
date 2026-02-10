@@ -1,36 +1,20 @@
 import z from 'zod';
 import { DBMap } from './db';
-import { id } from 'zod/locales';
 import { idToHue } from './utils';
+import { usernameRegex } from '$lib';
 
 const accountSchema = z.object({
 	id: z.string(),
-	username: z.string(),
+	username: z.string().regex(usernameRegex),
 	displayName: z.string().optional(),
-	passwordHash: z.string(),
 	avatarHash: z.string(),
 	pronouns: z.string().max(100).optional(),
 	bio: z.string().max(10200).optional(),
-	totp: z
-		.object({
-			secret: z.string(),
-			backupCodes: z.array(z.string()).max(10).min(10)
-		})
-		.optional(),
-	sessions: z
-		.record(
-			z.string(),
-			z.object({
-				createdAt: z.number(),
-				expiresAt: z.number(),
-				refreshAt: z.number().optional()
-			})
-		)
-		.optional(),
+
 	authorizedApps: z.record(z.string(), z.literal(true)).optional()
 });
-
-export type Account = z.infer<typeof accountSchema>;
+  
+export type Account = z.infer<typeof accountSchema>;7
 
 const accountDBMap = new DBMap('accounts', accountSchema, null);
 
@@ -103,11 +87,13 @@ export const avatarHandler = {
 			return false;
 		}
 	},
-	// no deleting, to "delete" replace it with the default
-	// delete: async (userId: string, hash: string) => {
-	// 	const filePath = avatarHandler.getPath(hash, userId);
-	// 	await fs.unlink(filePath);
-	// },
+	/**
+	 * only for when delete entire account!!!!!!!!!!!!!!!!!!!!
+	 */
+	delete: async (userId: string, hash: string) => {
+		const filePath = avatarHandler.getPath(hash, userId);
+		await fs.unlink(filePath);
+	},
 	getReadStream: async (path: string) => {
 		try {
 			await fs.access(path);

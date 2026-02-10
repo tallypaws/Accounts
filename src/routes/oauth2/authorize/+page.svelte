@@ -43,7 +43,7 @@
 			await goto(json.redirect);
 		} catch {
 			window.location = json.redirect;
-		}
+		}	
 	}
 </script>
 

@@ -3,13 +3,11 @@ import { json } from '@sveltejs/kit';
 import { accountDB, avatarHandler } from '$lib/accounts';
 import { genId, hash } from '$lib/auth';
 import sharp from 'sharp';
+import { identityDB } from '$lib/identity';
+import { usernameRegex } from '$lib';
 
 const createSchema = z.object({
-	username: z
-		.string()
-		.min(3)
-		.max(32)
-		.regex(/^[a-zA-Z0-9_.-]+$/),
+	username: z.string().regex(usernameRegex),
 	displayName: z.string().min(1).max(64).optional(),
 	password: z.string().min(8).max(128)
 });
@@ -44,11 +42,25 @@ export async function POST({ request, cookies }) {
 
 	const acc = {
 		id: genId(),
-		username: username,
-		displayName: displayName,
-		passwordHash: await hash(password),
+		username,
+		displayName,
 		avatarHash: 'default'
 	};
+
+	const passwordIdentity = {
+		id: genId(),
+		accountId: acc.id,
+		provider: 'password' as const,
+		providerId: acc.id,
+		data: {
+			passwordHash: await hash(password),
+			totp: undefined
+		},
+		createdAt: Date.now()
+	};
+
+	await accountDB.setById(acc.id, acc);
+	await identityDB.setById(passwordIdentity.id, passwordIdentity);
 
 	const defaultBuffer = await avatarHandler.getDefaultAvatarBuffer();
 	const avatarBuffer = await sharp(defaultBuffer)

@@ -17,6 +17,8 @@
 					onlyOnFocus?: boolean;
 			  };
 		containerClass?: string;
+		invalid?: boolean;
+		invalidMessage?: string;
 	};
 
 	let {
@@ -26,6 +28,8 @@
 		files = $bindable(),
 		class: className,
 		maxlength,
+		invalid,
+		invalidMessage,
 		containerClass,
 		// label,
 		'data-slot': dataSlot = 'input',
@@ -33,26 +37,46 @@
 
 		...restProps
 	}: Props = $props();
+
+	const errorId =
+		typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+			? crypto.randomUUID()
+			: `input-error-${Math.floor(Math.random() * 1_000_000_000)}`;
+
+	const errorText = $derived(invalidMessage);
 </script>
 
 {#if type === 'file'}
-	<input
-		bind:this={ref}
-		data-slot={dataSlot}
-		class={cn(
-			'flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 pt-1.5 text-sm font-medium shadow-xs ring-offset-background transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30',
-			'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
-			'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
-			className
-		)}
-		type="file"
-		bind:files
-		bind:value
-		{maxlength}
-		{...restProps}
-	/>
+	<div class={cn('relative', containerClass)}>
+		{#if invalid && errorText}
+			<div
+				id={errorId}
+				role="alert"
+				aria-live="assertive"
+				class="absolute left-0 z-10 mt-1 w-max rounded-md border border-destructive/60 bg-destructive/5 px-2 py-1 text-sm text-destructive shadow-sm"
+			>
+				{errorText}
+			</div>
+		{/if}
+		<input
+			bind:this={ref}
+			data-slot={dataSlot}
+			class={cn(
+				'flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 pt-1.5 text-sm font-medium shadow-xs ring-offset-background transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30',
+				'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+				'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
+				className
+			)}
+			type="file"
+			bind:files
+			bind:value
+			{maxlength}
+			aria-invalid={invalid ? 'true' : undefined}
+			aria-describedby={invalid ? errorId : undefined}
+			{...restProps}
+		/>
+	</div>
 {:else}
-	<!-- <div class="relative"> -->
 	<div class={cn('group relative', containerClass)}>
 		<input
 			bind:this={ref}
@@ -67,6 +91,8 @@
 			bind:value
 			placeholder=" "
 			{maxlength}
+			aria-invalid={invalid ? 'true' : undefined}
+			aria-describedby={invalid ? errorId : undefined}
 			{...restProps}
 		/>
 		{#if maxlength && charCount !== false}
@@ -98,7 +124,16 @@
 				</div>
 			{/if}
 		{/if}
+
+		{#if invalid && errorText}
+			<div
+				id={errorId}
+				role="alert"
+				aria-live="assertive"
+				class="absolute bottom-full left-0 z-10 mb-1 w-max rounded-md border border-destructive/60 bg-destructive/5 px-2 py-px text-sm text-destructive opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100"
+			>
+				{errorText}
+			</div>
+		{/if}
 	</div>
-	<!-- svelte-ignore a11y_label_has_associated_control -->
-	<!-- </div> -->
 {/if}
