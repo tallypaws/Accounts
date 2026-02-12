@@ -44,13 +44,14 @@
 		}
 		loading = false;
 	}
+
+	let passwdInput: HTMLInputElement | null= $state(null);
 </script>
 
 <!-- <h1>login</h1>
 <input type="text" bind:value={user} />
 <input type="text" bind:value={passwd} />
 <button onclick={login} disabled={!user || !passwd}>Login</button> -->
-
 <div class="flex h-screen w-screen items-center justify-center">
 	<Card.Root class="mx-4 w-full max-w-156 transition-[width] sm:w-[70%]">
 		{#if criticalError}
@@ -71,12 +72,23 @@
 					{#if error}
 						<p class="text-destructive">{error}</p>
 					{/if}
-					<Input bind:value={user} oninput={() => (error = '')} placeholder="Username" />
+					<Input bind:value={user} oninput={() => (error = '')} placeholder="Username" onkeydown={(e) => {
+						if (e.key === 'Enter' && user && !error && !loading) {
+							passwdInput?.focus();
+						}
+
+					}}/>
 					<Input
+						bind:ref={passwdInput}
 						bind:value={passwd}
 						oninput={() => (error = '')}
 						placeholder="Password"
 						type="password"
+						onkeydown={(e) => {
+							if (e.key === 'Enter' && user && passwd && !error && !loading) {
+								login();
+							}
+						}}
 					/>
 				</div>
 			</Card.Content>

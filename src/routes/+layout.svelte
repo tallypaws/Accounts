@@ -13,6 +13,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Bot, LogIn, LogOut, UserRound } from '@lucide/svelte';
 	import { page } from '$app/state';
+	import Prompter from './Prompter.svelte';
 
 	const url = $derived(page.url.pathname);
 	const isProfilePage = $derived(url.startsWith('/@me'));
@@ -50,6 +51,7 @@
 		</Button>
 	{/if}
 </div>
+<Prompter />
 <Toaster richColors position="top-center" />
 <ModeWatcher />
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>

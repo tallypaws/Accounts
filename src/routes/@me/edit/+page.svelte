@@ -7,7 +7,17 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Avatar from '$lib/components/ui/avatar/index.js';
 	import { Button } from '$lib/components/ui/button';
-	import { ChevronLeft, Delete, Key, Minus, Trash, Upload, type IconProps } from '@lucide/svelte';
+	import {
+		ChevronLeft,
+		Delete,
+		Key,
+		Minus,
+		Pencil,
+		Plus,
+		Trash,
+		Upload,
+		type IconProps
+	} from '@lucide/svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { avatarUrl, defaultAvatarUrl, discordAvatarUrl } from '$lib';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
@@ -16,6 +26,7 @@
 	import { Discord, GitHub, Google } from '$lib/icons';
 
 	import { type Component } from 'svelte';
+	import Dialog from '$lib/components/ui/dialog';
 
 	let changed = $state(false);
 	let loading = $state(false);
@@ -120,13 +131,107 @@
 		{ Icon: GitHub, name: 'GitHub', connected: false },
 		{ Icon: Google, name: 'Google', connected: false }
 	];
+
+	import zxcvbn from '$lib/zxcvbn';
+	import PasswordBar from '$lib/components/PasswordBar.svelte';
+	import { promptFor } from '../../prompting';
+	import { toast } from 'svelte-sonner';
+	import { SiDiscord, SiGithub, SiGoogle } from '@icons-pack/svelte-simple-icons';
+
+	async function updateIdentites() {
+		const response = await fetch('/api/accounts/identities').then(json);
+		data.identities = response.identities;
+	}
+
+	async function deleteIdentity(id: string) {
+		const promise = new Promise(async (resolve, rej) => {
+			const res = await fetch(`/api/accounts/identities/${id}`, {
+				method: 'DELETE'
+			});
+
+			if (res.ok) {
+				resolve(true);
+			} else {
+				rej(new Error('Failed to delete identity'));
+			}
+		});
+
+		toast.promise(promise, {
+			loading: 'Deleting identity...',
+			success: 'Identity deleted',
+			error: 'Failed to delete identity'
+		});
+
+		await promise;
+		await updateIdentites();
+	}
+
+	let passwd = $state('');
+	let newPasswd = $state('');
+	const zxcvbnResult = $derived(zxcvbn(newPasswd));
+	let newPasswdConfirm = $state('');
+	let changingPassword = $state(false);
+	async function changePassword() {
+		changingPassword = true;
+		try {
+			const response = await fetch('/api/accounts/identities/password/change', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					password: passwd,
+					newPassword: newPasswd
+				})
+			});
+
+			if (!response.ok) {
+				toast.error((await response.json()).error || 'Failed to change password');
+
+				return;
+			}
+
+			const result = await response.json();
+
+			if (result.requiresTOTP) {
+				const totp = await promptFor('TOTPOTP', {});
+				if (!totp) {
+					toast.error('TOTP is required to change password');
+					return;
+				}
+				const totpResponse = await fetch('/api/accounts/identities/password/change/totp', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						password: passwd,
+						newPassword: newPasswd,
+						totp
+					})
+				});
+				if (!totpResponse.ok) {
+					toast.error((await totpResponse.json()).error || 'Failed to change password');
+					return;
+				}
+				toast.success('Password changed successfully');
+			} else {
+				toast.success('Password changed successfully');
+			}
+		} catch (error) {
+		} finally {
+			changingPassword = false;
+			newPasswd = '';
+			newPasswdConfirm = '';
+		}
+	}
 </script>
 
 <!-- <h1>login</h1>
 <input type="text" bind:value={user} />
 <input type="text" bind:value={passwd} />
 <button onclick={login} disabled={!user || !passwd}>Login</button> -->
-
+<!-- <div>{zxcvbnResult.score} {zxcvbnResult.guesses_log10} {newPasswd}</div> -->
 <div class="flex h-screen w-screen items-center justify-center">
 	<div class="flex max-h-full w-full flex-col items-center gap-2 overflow-auto py-5">
 		<Card.Root class=" relative  w-[70%] max-w-180">
@@ -246,12 +351,38 @@
 		</Card.Root>
 		<Card.Root class="l relative w-[70%] max-w-180">
 			<Card.Content class="flex flex-col gap-4">
-				<h1 class="text-lg font-semibold">Log In Methods</h1>
+				<div class="flex items-center justify-between">
+					<h1 class="text-lg font-semibold">Log In Methods</h1>
+					<Dialog.Root>
+						<Dialog.Trigger>
+							<Button size="icon" variant="outline">
+								<Plus class="size-4" />
+							</Button>
+						</Dialog.Trigger>
+						<Dialog.Content>
+							<h2 class="text-lg font-semibold">Add Log In Method</h2>
+							<div class="flex flex-row items-center justify-center gap-4">
+								<Button  variant="outline" size="icon">
+									<Key class="size-4" />
+								</Button>
+								<Button variant="outline" size="icon" href="/login/provider/discord/authenticate?intent=link&redirectTo=/@me/edit">
+									<SiDiscord size={20} />
+								</Button>
+								<Button variant="outline" size="icon" disabled>
+									<SiGithub size={20} />
+								</Button>
+								<Button variant="outline" size="icon" disabled>
+									<SiGoogle size={20} />
+								</Button>
+							</div>
+						</Dialog.Content>
+					</Dialog.Root>
+				</div>
 				<div class="flex flex-col gap-2">
 					{#each data.identities as identity}
-						<div class="relative flex items-center justify-between rounded-lg border p-3">
-							<div class="flex items-center gap-3">
-								{#if identity.provider === 'discord'}
+						<div class="group relative flex items-center justify-between rounded-lg border p-3">
+							{#if identity.provider === 'discord'}
+								<div class="flex items-center gap-3">
 									<div class="">
 										<Discord
 											class="absolute top-1 left-1 size-6 rounded-sm bg-card p-0.75 text-muted-foreground"
@@ -270,20 +401,121 @@
 											Connected as <span class="font-mono">{identity.data.username}</span>
 										</span>
 									</div>
-								{:else if identity.provider === 'github'}
-									<GitHub class="size-10 text-muted-foreground p-1" />
-								{:else if identity.provider === 'google'}
+								</div>
+								<Button
+									variant="ghost"
+									class="text-destructive opacity-90 hover:opacity-100"
+									size="icon"
+									disabled={data.identities.length === 1}
+									onclick={async () => {
+										if (
+											await promptFor('confirmation', {
+												title: 'Are you sure?',
+												description:
+													"This will permanently delete this login method and you won't be able to use it to log in anymore.",
+												confirmText: 'Delete',
+												cancelText: 'Cancel'
+											})
+										) {
+											await deleteIdentity(identity.id);
+										}
+									}}
+								>
+									<Minus class="size-4" />
+								</Button>
+							{:else if identity.provider === 'github'}
+								<div class="flex items-center gap-3">
+									<GitHub class="size-10 p-1 text-muted-foreground" />
+								</div>
+								<Button
+									variant="ghost"
+									class="text-destructive opacity-90 hover:opacity-100"
+									size="icon"
+								>
+									<Minus class="size-4" />
+								</Button>
+							{:else if identity.provider === 'google'}
+								<div class="flex items-center gap-3">
 									<Google class="size-10 text-muted-foreground" />
-								{:else if identity.provider === 'password'}
-									<Key class="size-10 text-muted-foreground p-1" />
+								</div>
+								<Button
+									variant="ghost"
+									class="text-destructive opacity-90 hover:opacity-100"
+									size="icon"
+								>
+									<Minus class="size-4" />
+								</Button>
+							{:else if identity.provider === 'password'}
+								<div class="flex items-center gap-3">
+									<Key class="size-10 p-1 text-muted-foreground" />
 									<div class="flex flex-col leading-tight">
 										<span class="font-medium">
 											{identity.provider.charAt(0).toUpperCase() + identity.provider.slice(1)}
 										</span>
 									</div>
-								{/if}
-							</div>
-							<Button variant="ghost" class="text-destructive" size="icon"><Minus class="size-4" /></Button>
+								</div>
+								<div>
+									<Dialog.Root>
+										<Dialog.Trigger>
+											<Button
+												variant="ghost"
+												class="opacity-0 group-hover:opacity-40 hover:opacity-100"
+												size="icon"
+											>
+												<Pencil class="size-4" />
+											</Button>
+										</Dialog.Trigger>
+										<Dialog.Content>
+											<h2 class="text-lg font-semibold">Change Password</h2>
+											<Input type="password" placeholder="Current Password" bind:value={passwd} />
+											<div class="flex flex-col gap-2">
+												<PasswordBar password={newPasswd}>
+													<Input
+														type="password"
+														placeholder="New Password"
+														bind:value={newPasswd}
+													/>
+												</PasswordBar>
+												<Input
+													type="password"
+													placeholder="Confirm New Password"
+													invalid={newPasswd !== newPasswdConfirm}
+													bind:value={newPasswdConfirm}
+													invalidMessage="Passwords do not match"
+												/>
+											</div>
+											<Button
+												onclick={changePassword}
+												disabled={!passwd ||
+													!newPasswd ||
+													newPasswd !== newPasswdConfirm ||
+													changingPassword}>Change Password</Button
+											>
+										</Dialog.Content>
+									</Dialog.Root>
+									<Button
+										variant="ghost"
+										class="text-destructive opacity-90 hover:opacity-100"
+										disabled={data.identities.length === 1}
+										size="icon"
+										onclick={async () => {
+											if (
+												await promptFor('confirmation', {
+													title: 'Are you sure?',
+													description:
+														"This will permanently delete this login method and you won't be able to use it to log in anymore.",
+													confirmText: 'Delete',
+													cancelText: 'Cancel'
+												})
+											) {
+												await deleteIdentity(identity.id);
+											}
+										}}
+									>
+										<Minus class="size-4" />
+									</Button>
+								</div>
+							{/if}
 						</div>
 					{/each}
 					<!-- {#each providers as { Icon, ...provider }}

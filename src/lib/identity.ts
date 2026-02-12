@@ -8,7 +8,8 @@ const baseIdentitySchema = z.object({
 
 	providerId: z.string(),
 	createdAt: z.number(),
-	lastUsedAt: z.number().optional()
+	lastUsedAt: z.number().optional(),
+	lastEditedAt: z.number().optional()
 });
 
 const passwordIdentitySchema = baseIdentitySchema.extend({

@@ -5,7 +5,7 @@ async function handleInternalHTTP(req: http.IncomingMessage, res: http.ServerRes
 		res.end(JSON.stringify({ error: 'Forbidden' }));
 		return;
 	}
-
+	
 	switch (req.url) {
 		case '/internal/accounts/create':
 			if (req.method === 'POST') {

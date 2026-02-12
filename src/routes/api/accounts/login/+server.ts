@@ -66,6 +66,9 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	await sessionDB.set(session.id, session);
 	setSessionToken(cookies, generateSessionToken({ userId: account.id, jti: session.id }));
 
+	identity.lastUsedAt = Date.now();
+	await identityDB.setById(identity.id, identity);
+	
 	return json({
 		success: true
 	});

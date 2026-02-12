@@ -13,6 +13,7 @@
 	import { goto } from '$app/navigation';
 	import { range, s } from '@thetally/toolbox';
 	import { onMount } from 'svelte';
+	import UsernameChecklist from '$lib/components/UsernameChecklist.svelte';
 	console.log('Callback data:', data);
 	if (data.action === 'login_success') {
 		onMount(() => {
@@ -25,61 +26,60 @@
 	const { action, username, creationReferralCode, redirectTo } = $state.snapshot(data);
 
 	let user = $state(username ?? '');
-	let error = $state('');
+	// let error = $state('');
 	let loading = $state(false);
 	let checkingUsername = $state(false);
 	let usernameTaken = $state(false);
-	let checkId = 0;
 	let interacted = $state(true);
 	let wantsToCreate = $state(action !== 'prompt_create_account');
 
-	type RequirementState = 'met' | 'unmet' | 'checking' | 'error';
+	// type RequirementState = 'met' | 'unmet' | 'checking' | 'error';
 
-	type Requirement = {
-		text: string;
-		fn: () => Promise<RequirementState> | RequirementState;
-	};
+	// type Requirement = {
+	// 	text: string;
+	// 	fn: () => Promise<RequirementState> | RequirementState;
+	// };
 
-	const requirements: Requirement[] = [
-		{
-			text: 'Must exist',
-			fn: () => (user.length >= 1 ? 'met' : 'unmet')
-		},
-		{
-			text: 'No more than 32 characters',
-			fn: () => (user.length <= 32 ? 'met' : 'unmet')
-		},
-		{
-			text: 'Only letters, numbers, underscores, hyphens, and periods',
-			fn: () => (getUsernameRegex({ lengthRequirements: false }).test(user) ? 'met' : 'unmet')
-		},
-		// // {
-		// // 	text: 'Cannot start or end with special characters',
-		// // 	fn: () => /^[a-zA-Z0-9].*[a-zA-Z0-9]$/.test(user)
-		// // },
-		// // {
-		// // 	text: 'No consecutive special characters',
-		// // 	fn: () => !/[._-]{2,}/.test(user)
-		// // },
-		// { text: 'Must contain at least one letter ', fn: () => /[a-zA-Z]/.test(user) },
-		{
-			text: 'Username is not already taken',
-			fn: async () => {
-				try {
-					return !(await userIsTaken(user)) ? 'met' : 'unmet';
-				} catch (error) {
-					return 'error';
-				}
-			}
-		}
-	];
+	// const requirements: Requirement[] = [
+	// 	{
+	// 		text: 'Must exist',
+	// 		fn: () => (user.length >= 1 ? 'met' : 'unmet')
+	// 	},
+	// 	{
+	// 		text: 'No more than 32 characters',
+	// 		fn: () => (user.length <= 32 ? 'met' : 'unmet')
+	// 	},
+	// 	{
+	// 		text: 'Only letters, numbers, underscores, hyphens, and periods',
+	// 		fn: () => (getUsernameRegex({ lengthRequirements: false }).test(user) ? 'met' : 'unmet')
+	// 	},
+	// 	// // {
+	// 	// // 	text: 'Cannot start or end with special characters',
+	// 	// // 	fn: () => /^[a-zA-Z0-9].*[a-zA-Z0-9]$/.test(user)
+	// 	// // },
+	// 	// // {
+	// 	// // 	text: 'No consecutive special characters',
+	// 	// // 	fn: () => !/[._-]{2,}/.test(user)
+	// 	// // },
+	// 	// { text: 'Must contain at least one letter ', fn: () => /[a-zA-Z]/.test(user) },
+	// 	{
+	// 		text: 'Username is not already taken',
+	// 		fn: async () => {
+	// 			try {
+	// 				return !(await userIsTaken(user)) ? 'met' : 'unmet';
+	// 			} catch (error) {
+	// 				return 'error';
+	// 			}
+	// 		}
+	// 	}
+	// ];
 
-	const requirementsMet = $state(
-		requirements.map((r) => ({
-			text: r.text,
-			met: 'unmet' as RequirementState
-		}))
-	);
+	// const requirementsMet = $state(
+	// 	requirements.map((r) => ({
+	// 		text: r.text,
+	// 		met: 'unmet' as RequirementState
+	// 	}))
+	// );
 
 	function acceptCreate() {
 		wantsToCreate = true;
@@ -89,69 +89,71 @@
 		goto('/login');
 	}
 
-	async function userIsTaken(username: string) {
-		// await new Promise((resolve) => setTimeout(resolve, 1000)); 
-		checkingUsername = true;
-		usernameTaken = false;
-		try {
-			const res = await fetch(`/api/accounts/username-taken/${encodeURIComponent(username)}`);
-			if (!res.ok) {
-				throw new Error('Failed to check username');
-			}
-			const data = await res.json();
-			error = data.taken ? 'Username is already taken' : '';
-			usernameTaken = data.taken;
-			return data.taken;
-		} catch (e) {
-			console.error(e);
-			checkingUsername = false;
-			error = 'Error checking username availability';
-			return false;
-		} finally {
-			checkingUsername = false;
-		}
-	}
+	// async function userIsTaken(username: string) {
+	// 	// await new Promise((resolve) => setTimeout(resolve, 1000)); 
+	// 	checkingUsername = true;
+	// 	usernameTaken = false;
+	// 	try {
+	// 		const res = await fetch(`/api/accounts/username-taken/${encodeURIComponent(username)}`);
+	// 		if (!res.ok) {
+	// 			throw new Error('Failed to check username');
+	// 		}
+	// 		const data = await res.json();
+	// 		error = data.taken ? 'Username is already taken' : '';
+	// 		usernameTaken = data.taken;
+	// 		return data.taken;
+	// 	} catch (e) {
+	// 		console.error(e);
+	// 		checkingUsername = false;
+	// 		error = 'Error checking username availability';
+	// 		return false;
+	// 	} finally {
+	// 		checkingUsername = false;
+	// 	}
+	// }
 
-	$effect(() => {
-		console.log('Checking username:', user);
-		if (user) {
-			interacted = true;
-		}
-		// if (user.length >= 3) {
-		// 	userIsTaken(user);
-		//     error = "";
-		// } else {
-		// 	error = 'Username must be at least 3 characters';
-		// }
+	// $effect(() => {
+	// 	console.log('Checking username:', user);
+	// 	if (user) {
+	// 		interacted = true;
+	// 	}
+	// 	// if (user.length >= 3) {
+	// 	// 	userIsTaken(user);
+	// 	//     error = "";
+	// 	// } else {
+	// 	// 	error = 'Username must be at least 3 characters';
+	// 	// }
 
-		// if (user.length < 3) {
-		// 	error = 'Username must be at least 3 characters';
-		// 	usernameTaken = false;
-		// } else if (!usernameRegex.test(user)) {
-		// 	error = 'Username can only contain letters, numbers, underscores, hyphens, and periods';
-		// 	usernameTaken = false;
-		// } else {
-		// 	error = '';
-		// 	userIsTaken(user);
-		// }
-		const currentCheckId = ++checkId;
-		Promise.all(
-			requirementsMet.map(async (req, index) => {
-				try {
-					const mabyePromise = requirements[index].fn();
-					if (mabyePromise instanceof Promise) req.met = 'checking';
-					const result = await mabyePromise;
-					if (currentCheckId !== checkId) return;
-					req.met = result;
-				} catch (error) {
-					if (currentCheckId !== checkId) return;
-					req.met = 'error';
-				}
-			})
-		);
-	});
+	// 	// if (user.length < 3) {
+	// 	// 	error = 'Username must be at least 3 characters';
+	// 	// 	usernameTaken = false;
+	// 	// } else if (!usernameRegex.test(user)) {
+	// 	// 	error = 'Username can only contain letters, numbers, underscores, hyphens, and periods';
+	// 	// 	usernameTaken = false;
+	// 	// } else {
+	// 	// 	error = '';
+	// 	// 	userIsTaken(user);
+	// 	// }
+	// 	const currentCheckId = ++checkId;
+	// 	Promise.all(
+	// 		requirementsMet.map(async (req, index) => {
+	// 			try {
+	// 				const mabyePromise = requirements[index].fn();
+	// 				if (mabyePromise instanceof Promise) req.met = 'checking';
+	// 				const result = await mabyePromise;
+	// 				if (currentCheckId !== checkId) return;
+	// 				req.met = result;
+	// 			} catch (error) {
+	// 				if (currentCheckId !== checkId) return;
+	// 				req.met = 'error';
+	// 			}
+	// 		})
+	// 	);
+	// });
 
-	const valid = $derived(requirementsMet.every((req) => req.met === 'met'));
+	// const valid = $derived(requirementsMet.every((req) => req.met === 'met'));
+
+	let valid = $state(false);
 
 	async function create() {
 		loading = true;
@@ -172,7 +174,7 @@
 				goto(redirectTo ?? '/@me').catch(() => goto('/@me'));
 			}, s(1).toMs());
 		} else {
-			error = createdata.error;
+			// error = createdata.error;
 			loading = false;
 			return;
 		}
@@ -213,7 +215,7 @@
 								placeholder="Username"
 								invalid={!valid && interacted}
 							/>
-							<div class="mx-4 mt-4 flex flex-col gap-2">
+							<!-- <div class="mx-4 mt-4 flex flex-col gap-2">
 								{#each requirementsMet as req, index}
 									<div class="flex items-center gap-0" transition:slide={{ delay: index * 200 }}>
 										{#if req.met === 'met'}
@@ -236,7 +238,8 @@
 										<span class="ml-2 text-sm">{req.text}</span>
 									</div>
 								{/each}
-							</div>
+							</div> -->
+							<UsernameChecklist username={user} bind:valid={valid} bind:processing={checkingUsername} />
 						</div>
 					</Card.Content>
 					<Card.Footer class="w-full flex-col flex-wrap gap-2">
