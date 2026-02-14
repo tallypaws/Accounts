@@ -289,11 +289,10 @@
 		};
 	});
 
-	let newUsername = $state('');
-	let usernameProcessing = $state(false);
-	let usernameValid = $state(false);
 </script>
-
+<svelte:head>
+	<title>Edit Account</title>
+</svelte:head>
 <!-- <h1>login</h1>
 <input type="text" bind:value={user} />
 <input type="text" bind:value={passwd} />

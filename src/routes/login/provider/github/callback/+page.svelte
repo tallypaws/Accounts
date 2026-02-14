@@ -180,6 +180,15 @@
 		}
 	}
 </script>
+<svelte:head>
+	{#if action === 'link_success'}
+		<title>Account linked successfully</title>
+	{:else if action === 'prompt_create_account'}
+		<title>Create an account</title>
+	{:else}
+		<title>Create an account</title>
+	{/if}
+</svelte:head>
 
 <div class="flex h-screen w-screen flex-col items-center justify-center">
 	{#if action === 'create_account' || action === 'prompt_create_account'}

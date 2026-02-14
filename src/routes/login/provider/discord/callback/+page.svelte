@@ -90,7 +90,7 @@
 	}
 
 	// async function userIsTaken(username: string) {
-	// 	// await new Promise((resolve) => setTimeout(resolve, 1000)); 
+	// 	// await new Promise((resolve) => setTimeout(resolve, 1000));
 	// 	checkingUsername = true;
 	// 	usernameTaken = false;
 	// 	try {
@@ -181,6 +181,16 @@
 	}
 </script>
 
+<svelte:head>
+	{#if action === 'link_success'}
+		<title>Account linked successfully</title>
+	{:else if action === 'prompt_create_account'}
+		<title>Create an account</title>
+	{:else}
+		<title>Create an account</title>
+	{/if}
+</svelte:head>
+
 <div class="flex h-screen w-screen flex-col items-center justify-center">
 	{#if action === 'create_account' || action === 'prompt_create_account'}
 		{#if wantsToCreate}
@@ -239,7 +249,7 @@
 									</div>
 								{/each}
 							</div> -->
-							<UsernameChecklist username={user} bind:valid={valid} bind:processing={checkingUsername} />
+							<UsernameChecklist username={user} bind:valid bind:processing={checkingUsername} />
 						</div>
 					</Card.Content>
 					<Card.Footer class="w-full flex-col flex-wrap gap-2">
@@ -324,7 +334,7 @@
 						<div class="flex flex-col items-center gap-0">
 							<Avatar.Root class="h-16 w-16">
 								<Avatar.Image
-									src={avatarUrl(data.account?.id ?? "", data.account?.avatarHash)}
+									src={avatarUrl(data.account?.id ?? '', data.account?.avatarHash)}
 									alt="Account Avatar"
 								/>
 								<Avatar.Fallback class="text-xl">

@@ -49,7 +49,9 @@
 
 	let passwdInput: HTMLInputElement | null = $state(null);
 </script>
-
+<svelte:head>
+	<title>Log in to your account</title>
+</svelte:head>
 <!-- <h1>login</h1>
 <input type="text" bind:value={user} />
 <input type="text" bind:value={passwd} />
@@ -145,3 +147,4 @@
 		{/if}
 	</Card.Root>
 </div>
+

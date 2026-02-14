@@ -66,6 +66,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Create an account</title>
+</svelte:head>
+
 <!-- <h1>login</h1>
 <input type="text" bind:value={user} />
 <input type="text" bind:value={passwd} />

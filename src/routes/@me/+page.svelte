@@ -14,6 +14,9 @@
 <input type="text" bind:value={user} />
 <input type="text" bind:value={passwd} />
 <button onclick={login} disabled={!user || !passwd}>Login</button> -->
+<svelte:head>
+	<title>Account</title>
+</svelte:head>
 
 <div class="flex h-screen w-screen items-center justify-center">
 	<Card.Root class=" relative w-[70%] max-w-180">
