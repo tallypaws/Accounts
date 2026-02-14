@@ -1,3 +1,5 @@
+console.log('Loading DB module');
+
 import Surreal, { RecordId } from 'surrealdb';
 import type { z } from 'zod';
 import fs from 'fs/promises';
@@ -23,6 +25,8 @@ function onConnected(cb: () => void) {
 
 // surreal sql --namespace prism --database prism --username root --password root --pretty
 export async function connectDB() {
+	console.log('Connecting to DB...');
+	console.trace()
 	let loops = 0;
 
 	while (true) {
@@ -64,7 +68,6 @@ export async function connectDB() {
 	}
 }
 
-console.log('Connected to DB');
 export { surrealDb };
 
 export class DBSingleton<T extends z.ZodTypeAny> {
@@ -243,7 +246,6 @@ export class DBNestedMapX<N extends number, T extends z.ZodTypeAny, D = z.infer<
 			await instance.ensureIndexes();
 			def.resolve(true);
 		})
-		await def.promise;
 		return instance;
 	}
 
@@ -465,6 +467,8 @@ class QueryBuilder<T> {
 	}
 
 	async exec(): Promise<T[]> {
+		console.log('Executing query with filters:', this.filters, 'params:', this.params);
+		console.trace()
 		const where = this.filters.length ? `WHERE ${this.filters.join(' AND ')}` : '';
 		const sort = this._sortBy ? `ORDER BY ${this._sortBy} ${this._sortDir}` : '';
 		const sql = `SELECT * FROM ${this.namespace} ${where} ${sort} LIMIT ${this._limit} START ${this._offset}`;

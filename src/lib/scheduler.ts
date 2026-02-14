@@ -148,7 +148,7 @@ async function getScheduledInternalEvents(): Promise<ScheduledInternalEvent[]> {
 let nextEventTimeout: NodeJS.Timeout | null = null;
 let isUpdatingTimeout = false;
 
-async function updateNextEventTimeout(): Promise<void> {
+export async function updateNextEventTimeout(): Promise<void> {
   if (isUpdatingTimeout) {
     return;
   }
@@ -283,5 +283,4 @@ export async function cancelScheduledEvent(eventId: string): Promise<boolean> {
   return true;
 }
 
-await updateNextEventTimeout();
 
