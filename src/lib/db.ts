@@ -8,7 +8,7 @@ const isDev = env.NODE_ENV === 'development';
 
 const surrealDb = new Surreal();
 // surreal sql --namespace prism --database prism --username root --password root --pretty
-async function connectDB() {
+export async function connectDB() {
 	let loops = 0;
 
 	while (true) {
@@ -46,7 +46,6 @@ async function connectDB() {
 	}
 }
 
-await connectDB();
 console.log('Connected to DB');
 export { surrealDb };
 
