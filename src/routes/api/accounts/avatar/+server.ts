@@ -54,7 +54,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	const chunks: Buffer[] = [];
 	const hash = crypto.createHash('sha256');
 	const reader = request.body.getReader();
-
+    // dont touch it works
 	while (true) {
 		const { done, value } = await reader.read();
 		if (done) break;
