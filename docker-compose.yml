@@ -9,12 +9,8 @@ services:
       - NODE_ENV=production
     networks:
       - surrealdb-net
-      - dokploy-network
 
 networks:
   surrealdb-net:
     name: surrealdb-net
-    driver: bridge
-  dokploy-network:
-    name: dokploy-network
     driver: bridge
