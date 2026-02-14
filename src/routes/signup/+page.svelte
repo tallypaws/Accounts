@@ -9,6 +9,7 @@
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { X } from '@lucide/svelte';
 	import { SiDiscord, SiGithub, SiGoogle } from '@icons-pack/svelte-simple-icons';
+	import PasswordBar from '$lib/components/PasswordBar.svelte';
 
 	let { data }: PageProps = $props();
 	let user = $state('');
@@ -96,15 +97,18 @@
 						<p class="text-destructive">{error}</p>
 					{/if}
 					<Input bind:value={user} oninput={() => (error = '')} placeholder="Username" />
-					<Input
+					<!-- <Input
 						bind:value={passwd}
 						oninput={() => (error = '')}
 						placeholder="Password"
 						type="password"
-					/>
+					/> -->
+					<PasswordBar password={passwd}>
+						<Input type="password" placeholder="Password" bind:value={passwd} />
+					</PasswordBar>
 				</div>
 			</Card.Content>
-						<Card.Footer class="w-full flex-col flex-wrap gap-2">
+			<Card.Footer class="w-full flex-col flex-wrap gap-2">
 				<Button
 					variant="default"
 					class="w-full"
@@ -118,14 +122,24 @@
 				</Button>
 				<div class="mt-5 mb-1 flex w-full items-center">
 					<div class="h-1 flex-1 rounded-xl bg-muted-foreground"></div>
-					<span class="mx-3 bg-card text-xs text-muted-foreground"> Or create an account with </span>
+					<span class="mx-3 bg-card text-xs text-muted-foreground">
+						Or create an account with
+					</span>
 					<div class="h-1 flex-1 rounded-xl bg-muted-foreground"></div>
 				</div>
 				<div class="flex w-full justify-center gap-4">
-					<Button variant="outline" size="icon" href="/login/provider/discord/authenticate?intent=create">
+					<Button
+						variant="outline"
+						size="icon"
+						href="/login/provider/discord/authenticate?intent=create"
+					>
 						<SiDiscord size={20} />
 					</Button>
-					<Button variant="outline" size="icon" href="/login/provider/github/authenticate?intent=create">
+					<Button
+						variant="outline"
+						size="icon"
+						href="/login/provider/github/authenticate?intent=create"
+					>
 						<SiGithub size={20} />
 					</Button>
 					<Button variant="outline" size="icon" disabled>
@@ -134,7 +148,9 @@
 				</div>
 				<div class="text-center text-sm">
 					<p class="text-muted-foreground">
-						Already have an account? <Button variant="link" class="p-0 h-auto" href="/login">Log in</Button>
+						Already have an account? <Button variant="link" class="h-auto p-0" href="/login"
+							>Log in</Button
+						>
 					</p>
 				</div>
 			</Card.Footer>
