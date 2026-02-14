@@ -3,10 +3,24 @@ import type { z } from 'zod';
 import fs from 'fs/promises';
 import path from 'path';
 import { env } from '$env/dynamic/private';
+import { deferred } from '@thetally/toolbox';
 
 const isDev = env.NODE_ENV === 'development';
 
 const surrealDb = new Surreal();
+
+let connected = false;
+
+const awaitingConnection: (() => void)[] = [];
+
+function onConnected(cb: () => void) {
+	if (connected) {
+		cb();
+	} else {
+		awaitingConnection.push(cb);
+	}
+}
+
 // surreal sql --namespace prism --database prism --username root --password root --pretty
 export async function connectDB() {
 	let loops = 0;
@@ -38,6 +52,10 @@ export async function connectDB() {
 				auth: { username: 'root', password: 'root' }
 			});
 
+			connected = true;
+			for (const cb of awaitingConnection) {
+				cb();
+			}
 			break;
 		} catch (error: any) {
 			// console.error("Failed to connect to DB", error.message);
@@ -219,7 +237,13 @@ export class DBNestedMapX<N extends number, T extends z.ZodTypeAny, D = z.infer<
 		depth: N
 	): Promise<DBNestedMapX<N, T, D>> {
 		const instance = new DBNestedMapX(namespace, schema, defaultV, depth);
-		await instance.ensureIndexes();
+
+		const def = deferred()
+		onConnected(async () => {
+			await instance.ensureIndexes();
+			def.resolve(true);
+		})
+		await def.promise;
 		return instance;
 	}
 
