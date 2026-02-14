@@ -115,9 +115,9 @@ export const load = (async ({ request, url, cookies }) => {
 			};
 		} else if (storedState.intent.type === 'link') {
 			if (identity) {
-				// kitError(400, { message: 'This github account is already linked to another account' });
+				kitError(400, { message: 'This GitHub account is already linked to another account' });
 				// test code: delete existing identity
-				await identityDB.deleteById(identity.id);
+				// await identityDB.deleteById(identity.id);
 			}
 			const newIdentity: GithubIdentity = {
 				id: genId(),
