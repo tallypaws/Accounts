@@ -5,7 +5,6 @@ import { identityDB } from '$lib/identity';
 
 export const GET: RequestHandler = async ({ cookies }) => {
     const cookieResult = await verifyCookies(cookies);
-    console.log('cookieResult', cookieResult);
     if ('error' in cookieResult || !cookieResult.account) {
         return json({ error: 'Unauthorized' }, { status: 401 });
     }

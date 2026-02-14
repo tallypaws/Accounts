@@ -10,12 +10,14 @@
 	import { applicationIconUrl, avatarUrl, defaultIconUrl } from '$lib';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
-	import { Clipboard, Key, Minus, Pencil, Plus, Trash, Upload } from '@lucide/svelte';
+	import { Clipboard, Key, Minus, Pencil, Plus, Trash, Upload, Share2 } from '@lucide/svelte';
 	import { GetDrawerDialog } from '$lib/components/ui/drawer-dialog';
 	import Textarea from '$lib/components/ui/textarea/textarea.svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
-	import { cn, idToHue } from '$lib/utils';
+	import { cn, idToHue, ScopeBitField } from '$lib/utils';
+	import * as Select from '$lib/components/ui/select/index.js';
+	import { Checkbox } from '$lib/components/ui/checkbox';
 
 	let changed = $state(false);
 	let loading = $state(false);
@@ -50,7 +52,22 @@
 
 	let editAppOpen = $state(false);
 	let newAppOpen = $state(false);
+	let oauthGeneratorOpen = $state(false);
 	let selectedApp: (typeof data)['apps'][number] = $state(null as any);
+
+	let selectedRedirectUri = $state('');
+	let oauth2baseUrl = $state('');
+	let selectedScopes = $state<('identify' | 'discord' | 'github' | 'google')[]>(['identify']);
+	let oauthState = $state('');
+	let generatedOauthState = $state({ error: '', url: '' });
+
+	$effect(() => {
+		if (oauthGeneratorOpen && selectedApp && selectedRedirectUri) {
+			generateOAuthUrl().then((result) => {
+				generatedOauthState = result;
+			});
+		}
+	});
 
 	let newApp: (typeof data)['apps'][number] = $state({
 		description: '',
@@ -75,6 +92,43 @@
 	async function copy(text: string, display?: string) {
 		await navigator.clipboard.writeText(text);
 		toast.success(`Copied ${display ?? text}`);
+	}
+
+	async function generateOAuthUrl(...args: any[]) {
+		if (!selectedApp || !selectedRedirectUri) {
+			return {error: 'Please select an app and redirect URI', url: ''};
+		}
+		try {
+			const scopeBitmap = ScopeBitField.toBitmap(selectedScopes);
+			const url = new URL('/oauth2/authorize', oauth2baseUrl || window.location.origin);
+			url.searchParams.set('client_id', selectedApp.id);
+			url.searchParams.set('redirect_uri', selectedRedirectUri);
+			url.searchParams.set('scope', scopeBitmap.toString());
+			let signature = '';
+			try {
+				const res = await fetch('/api/oauth/sign', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						client_id: selectedApp.id,
+						redirect_uri: selectedRedirectUri,
+						scope: scopeBitmap.toString()
+					})
+				});
+				const json = await res.json();
+				if (json.sig) signature = json.sig;
+				else return {error: 'Failed to sign parameters', url: ''};
+			} catch (e) {
+				return {error: 'Failed to sign parameters', url: ''};
+			}
+			url.searchParams.set('sig', signature);
+			if (oauthState) {
+				url.searchParams.set('state', oauthState);
+			}
+			return {error: '', url: url.toString()};
+		} catch (error) {
+			return {error: 'Invalid base URL', url: ''};
+		}
 	}
 </script>
 
@@ -101,6 +155,21 @@
 							class="group relative my-1 p-4 opacity-95 transition-opacity hover:opacity-100"
 						>
 							<div class="absolute top-2 right-2 flex">
+								<Button
+									size="icon"
+									variant="invisible"
+									onclick={() => {
+										selectedApp = $state.snapshot(app);
+										selectedRedirectUri = app.redirectUris[0] ?? '';
+										selectedScopes = ['identify'];
+										oauthState = '';
+										oauthGeneratorOpen = true;
+									}}
+									class="opacity-0 transition-opacity group-hover:opacity-100"
+									title="Generate OAuth URL"
+								>
+									<Share2 />
+								</Button>
 								<Button
 									size="icon"
 									variant="invisible"
@@ -210,7 +279,7 @@
 								</Button>
 							</div>
 							<Card.Content class="px-0">
-								<h3 class="flex items-center gap-2 text-lg font-bold -mt-1 mb-1">
+								<h3 class="-mt-1 mb-1 flex items-center gap-2 text-lg font-bold">
 									<Avatar.Root class="h-8 w-8">
 										<Avatar.Image src={applicationIconUrl(app.id, app.iconHash)} />
 										<Avatar.Fallback
@@ -257,7 +326,6 @@
 											</div>
 										{/if}
 									</div>
-									<!-- redirect uris -->
 									<p>Redirect URIs:</p>
 									<div>
 										{#key app.redirectUris}
@@ -334,7 +402,6 @@
 						/>
 						<Avatar.Fallback></Avatar.Fallback>
 					</Avatar.Root>
-					<!--  items-center justify-center -->
 					<div
 						class="flex-rowrounded-full absolute top-0 left-0 flex h-full w-full bg-background/80 opacity-0 transition-all hover:opacity-100"
 					>
@@ -410,7 +477,6 @@
 							method: 'POST',
 							body: inputValue
 						}).then((a) => a.json());
-						console.log(response);
 						if (response.success) {
 							newHash = response.avatarHash;
 							tempUrl = '';
@@ -444,7 +510,6 @@
 						toast.error(`Failed to update ${selectedApp.name}`, {});
 						return;
 					}
-					// apps[index] = selectedApp;
 					const target = apps[index];
 					target.name = selectedApp.name;
 					target.description = selectedApp.description;
@@ -516,5 +581,89 @@
 	</DrawerDialog.Content>
 </DrawerDialog.Root>
 
+<DrawerDialog.Root bind:open={oauthGeneratorOpen}>
+	<DrawerDialog.Content
+		style="
+			max-height: calc(100vh - 5rem);
+		"
+	>
+		<DrawerDialog.Header>
+			<DrawerDialog.Title>Generate OAuth URL for {selectedApp?.name}</DrawerDialog.Title>
+		</DrawerDialog.Header>
+		<div class="estrogen flex flex-col gap-4 overflow-auto">
+
+			{#if generatedOauthState.error}
+				<div class="p-2 text-sm text-red-500">{generatedOauthState.error}</div>
+			{/if}
+
+			<div>
+				<p class="mb-2 text-sm font-medium">Redirect URI</p>
+
+				<Select.Root type="single" bind:value={selectedRedirectUri}>
+					<Select.Trigger class="w-full"
+						>{selectedRedirectUri ?? '-- Select a redirect URI --'}</Select.Trigger
+					>
+					<Select.Content>
+						{#each selectedApp?.redirectUris ?? [] as uri}
+							<Select.Item value={uri}>{uri}</Select.Item>
+						{/each}
+						{#if !selectedApp?.redirectUris.length}
+							<p class="p-2 text-sm text-muted-foreground">No redirect URIs available</p>
+						{/if}
+					</Select.Content>
+				</Select.Root>
+			</div>
+
+			<div>
+				<p class="mb-2 text-sm font-medium">OAuth2 Base URL</p>
+				<Input bind:value={oauth2baseUrl} class="w-full" placeholder={window.location.origin} />
+			</div>
+
+			<div>
+				<p class="mb-2 text-sm font-medium">Scopes</p>
+				<div class="flex flex-col gap-2">
+					{#each ScopeBitField.values as scope}
+						<div class="flex items-center gap-2">
+							<Checkbox
+								bind:checked={
+									() => selectedScopes.includes(scope),
+									(v) => {
+										if (v && !selectedScopes.includes(scope)) {
+											selectedScopes.push(scope);
+											selectedScopes = selectedScopes;
+										} else if (!v && selectedScopes.includes(scope)) {
+											selectedScopes = selectedScopes.filter((s) => s !== scope);
+										}
+									}
+								}
+							/> <span class="text-sm">{scope}</span>
+						</div>
+					{/each}
+				</div>
+			</div>
+
+			<!-- <Button class="w-full" onclick={generateOAuthUrl}>
+				Generate URL
+			</Button> -->
+
+			{#if generatedOauthState.url}
+				<div class="mt-4 flex flex-col gap-2">
+					<p class="text-sm font-medium">Generated URL</p>
+					<div class="max-h-32 overflow-auto rounded border border-input bg-muted p-3">
+						<code class="text-xs break-all">{generatedOauthState.url}</code>
+					</div>
+					<Button
+						variant="outline"
+						class="w-full"
+						onclick={() => copy(generatedOauthState.url ?? '', 'OAuth URL')}
+					>
+						<Clipboard class="mr-2 size-4" />
+						Copy URL
+					</Button>
+				</div>
+			{/if}
+		</div>
+	</DrawerDialog.Content>
+</DrawerDialog.Root>
 <input type="file" bind:this={fileInput} accept="image/*" hidden onchange={handleFile} />
 {inputValue}

@@ -7,7 +7,6 @@ export const load = (async ({ cookies }) => {
 	if ('error' in cookieResult || !cookieResult.account) {
 		return { account: null, admin: false, loggedIn: false };
 	}
-	console.log('account: ', cookieResult.account, omit(cookieResult.account, ['authorizedApps']));
 	return {
 		account: omit({ ...cookieResult.account }, ['authorizedApps']),
 		admin: admins.has(cookieResult.account.username),

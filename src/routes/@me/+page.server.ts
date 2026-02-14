@@ -5,7 +5,6 @@ import type { PageServerLoad } from './$types';
 
 export const load = (async ({ cookies }) => {
 	const cookieResult = await verifyCookies(cookies);
-	console.log('cookieResult', cookieResult);
 	if ('error' in cookieResult || !cookieResult.account) {
 		redirect(302, '/login');
 	}

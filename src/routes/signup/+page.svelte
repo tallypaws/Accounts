@@ -13,7 +13,6 @@
 	let { data }: PageProps = $props();
 	let user = $state('');
 	let passwd = $state('');
-	console.log(page.url.searchParams);
 	let error = $state('');
 	let criticalError = $state('');
 	let loading = $state(false);
@@ -122,12 +121,17 @@
 					<Button variant="outline" size="icon" href="/login/provider/discord/authenticate?intent=create">
 						<SiDiscord size={20} />
 					</Button>
-					<Button variant="outline" size="icon" disabled>
+					<Button variant="outline" size="icon" href="/login/provider/github/authenticate?intent=create">
 						<SiGithub size={20} />
 					</Button>
 					<Button variant="outline" size="icon" disabled>
 						<SiGoogle size={20} />
 					</Button>
+				</div>
+				<div class="text-center text-sm">
+					<p class="text-muted-foreground">
+						Already have an account? <Button variant="link" class="p-0 h-auto" href="/login">Log in</Button>
+					</p>
 				</div>
 			</Card.Footer>
 		{/if}

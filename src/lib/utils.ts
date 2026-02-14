@@ -42,7 +42,7 @@ export class Bitmap<V extends string> {
 	}
 }
 
-export const ScopeBitField = new Bitmap(['identify', 'discord']);
+export const ScopeBitField = new Bitmap(['identify', 'discord', 'github', 'google']);
 
 export function idToHue(str: string): number {
 	let hash = 0;
@@ -54,7 +54,6 @@ export function idToHue(str: string): number {
 	return Math.abs(hash) % 360;
 }
 
-type Timer = ReturnType<typeof setTimeout>;
 
 // export class TimedMap<K, V> {
 // 	private map = new Map<K, V>();

@@ -8,6 +8,7 @@
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { X } from '@lucide/svelte';
 	import { SiDiscord, SiGithub, SiGoogle } from '@icons-pack/svelte-simple-icons';
+	import { onMount } from 'svelte';
 
 	let { data }: PageProps = $props();
 	let user = $state('');
@@ -15,6 +16,7 @@
 	let error = $state('');
 	let criticalError = $state('');
 	let loading = $state(false);
+
 
 	const redirect = page.url.searchParams.get('redirect') ?? '/';
 	if (!redirect.startsWith('/')) {
@@ -45,7 +47,7 @@
 		loading = false;
 	}
 
-	let passwdInput: HTMLInputElement | null= $state(null);
+	let passwdInput: HTMLInputElement | null = $state(null);
 </script>
 
 <!-- <h1>login</h1>
@@ -72,12 +74,16 @@
 					{#if error}
 						<p class="text-destructive">{error}</p>
 					{/if}
-					<Input bind:value={user} oninput={() => (error = '')} placeholder="Username" onkeydown={(e) => {
-						if (e.key === 'Enter' && user && !error && !loading) {
-							passwdInput?.focus();
-						}
-
-					}}/>
+					<Input
+						bind:value={user}
+						oninput={() => (error = '')}
+						placeholder="Username"
+						onkeydown={(e) => {
+							if (e.key === 'Enter' && user && !error && !loading) {
+								passwdInput?.focus();
+							}
+						}}
+					/>
 					<Input
 						bind:ref={passwdInput}
 						bind:value={passwd}
@@ -110,15 +116,30 @@
 					<div class="h-1 flex-1 rounded-xl bg-muted-foreground"></div>
 				</div>
 				<div class="flex w-full justify-center gap-4">
-					<Button variant="outline" size="icon" href="/login/provider/discord/authenticate">
+					<Button
+						variant="outline"
+						size="icon"
+						href={`/login/provider/discord/authenticate?redirectTo=${encodeURIComponent(redirect)}`}
+					>
 						<SiDiscord size={20} />
 					</Button>
-					<Button variant="outline" size="icon" disabled>
+					<Button
+						variant="outline"
+						size="icon"
+						href={`/login/provider/github/authenticate?redirectTo=${encodeURIComponent(redirect)}`}
+					>
 						<SiGithub size={20} />
 					</Button>
 					<Button variant="outline" size="icon" disabled>
 						<SiGoogle size={20} />
 					</Button>
+				</div>
+				<div class="text-center text-sm">
+					<p class="text-muted-foreground">
+						Don't have an account? <Button variant="link" class="h-auto p-0" href="/signup"
+							>Sign up</Button
+						>
+					</p>
 				</div>
 			</Card.Footer>
 		{/if}

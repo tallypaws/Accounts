@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { env } from '$env/dynamic/private';
 
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = env.NODE_ENV === 'development';
 
 const surrealDb = new Surreal();
 // surreal sql --namespace prism --database prism --username root --password root --pretty
@@ -32,9 +32,9 @@ async function connectDB() {
 		}
 		console.log('Connecting to DB...');
 		try {
-			await surrealDb.connect(process.env.SURREAL_URI ?? 'ws://localhost:9000/rpc', {
+			await surrealDb.connect(env.SURREAL_URI ?? 'ws://localhost:9000/rpc', {
 				namespace: 'accounts',
-				database: isDev ? 'dev' : 'prod',
+				database: isDev ? 'dev1' : 'prod',
 				auth: { username: 'root', password: 'root' }
 			});
 
@@ -49,6 +49,7 @@ async function connectDB() {
 await connectDB();
 console.log('Connected to DB');
 export { surrealDb };
+
 export class DBSingleton<T extends z.ZodTypeAny> {
 	protected name: string;
 	protected schema: T;
@@ -251,14 +252,18 @@ export class DBNestedMapX<N extends number, T extends z.ZodTypeAny, D = z.infer<
 	}
 
 	private async ensureIndexes() {
+		if (this.depth <= 1) {
+			console.log(`[DBNestedMapX] Skipping index for ${this.namespace}, depth=${this.depth}`);
+			return;
+		}
+
 		const indexName = `idx_${this.namespace}_keys`;
 
 		const keyFields = Array.from({ length: this.depth - 1 }, (_, i) => `key${i + 1}`);
 
-		const defineSql = `DEFINE INDEX ${indexName} ON ${
-			this.namespace
-		} FIELDS ${keyFields.join(', ')}`;
-
+		const defineSql = `DEFINE INDEX ${indexName} ON ${this.namespace
+			} FIELDS ${keyFields.join(', ')}`;
+		console.log(`[DBNestedMapX] Ensuring index for ${this.namespace}:`, defineSql);
 		try {
 			await surrealDb.query(defineSql);
 		} catch (e) {
@@ -266,7 +271,7 @@ export class DBNestedMapX<N extends number, T extends z.ZodTypeAny, D = z.infer<
 				(e instanceof Error ? e.message : String(e)) !== `The index '${indexName}' already exists`
 			)
 				console.warn(
-					`[DBNestedMapX] Failed to define index:`,
+					`[DBNestedMapX] Failed to define index for ${this.namespace}:`,
 					e instanceof Error ? e.message : String(e)
 				);
 		}
@@ -317,7 +322,7 @@ export class DBNestedMapX<N extends number, T extends z.ZodTypeAny, D = z.infer<
 	async find(
 		keys: FixedLengthTuple<N> & string[],
 		raw: true
-	): Promise<{ value: z.infer<T>; [keyString: `key${number}`]: string }[]>;
+	): Promise<{ value: z.infer<T>;[keyString: `key${number}`]: string }[]>;
 	async find(keys: FixedLengthTuple<N> & string[], raw?: false): Promise<z.infer<T>[]>;
 	async find(keys: FixedLengthTuple<N> & string[], raw?: boolean): Promise<any[]> {
 		const filters: string[] = [];
@@ -345,7 +350,7 @@ export class DBNestedMapX<N extends number, T extends z.ZodTypeAny, D = z.infer<
 		limit: number,
 		offset: number,
 		raw: true
-	): Promise<{ value: z.infer<T>; [keyString: `key${number}`]: string; rank: number }[]>;
+	): Promise<{ value: z.infer<T>;[keyString: `key${number}`]: string; rank: number }[]>;
 	async findSortedPaginated(
 		keys: FixedLengthTuple<N> & string[],
 		sortBy: `value.${string}`,
@@ -355,7 +360,7 @@ export class DBNestedMapX<N extends number, T extends z.ZodTypeAny, D = z.infer<
 		raw?: boolean
 	): Promise<
 		| (z.infer<T> & { rank: number })[]
-		| { value: z.infer<T>; [keyString: `key${number}`]: string; rank: number }[]
+		| { value: z.infer<T>;[keyString: `key${number}`]: string; rank: number }[]
 	>;
 	async findSortedPaginated(
 		keys: FixedLengthTuple<N> & string[],
@@ -366,7 +371,7 @@ export class DBNestedMapX<N extends number, T extends z.ZodTypeAny, D = z.infer<
 		raw: boolean = false
 	): Promise<
 		| (z.infer<T> & { rank: number })[]
-		| { value: z.infer<T>; [keyString: `key${number}`]: string; rank: number }[]
+		| { value: z.infer<T>;[keyString: `key${number}`]: string; rank: number }[]
 	> {
 		const filters: string[] = [];
 		const params: Record<string, any> = {};
@@ -411,7 +416,7 @@ class QueryBuilder<T> {
 	constructor(
 		private namespace: string,
 		private parse: (row: any) => T
-	) {}
+	) { }
 
 	where(field: string, operator: '=' | '!=' | '<' | '<=' | '>' | '>=' | 'LIKE', value: any) {
 		const key = `param_${this.filters.length}`;
@@ -457,5 +462,5 @@ async function deleteDevJson(recordId: RecordId) {
 	const file = path.join(DEV_DB_DIR, `${recordId.tb}_${recordId.id}.json`);
 	try {
 		await fs.unlink(file);
-	} catch {}
+	} catch { }
 }

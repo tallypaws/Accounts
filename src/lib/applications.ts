@@ -46,7 +46,7 @@ export const applicationDB = {
 	},
 	setById: async (key: string, data: Args<(typeof applicationDBMap)['set']>) => {
 		await applicationDBMap.set(key, data);
-		await nameMap.set(key, data.name);
+		await nameMap.set(data.name, key);
 	},
 	setByName: async (key: string, data: Args<(typeof applicationDBMap)['set']>) => {
 		const id = await nameMap.get(key);
@@ -107,7 +107,7 @@ export const appIconHandler = {
 	},
 	/**
 	 * 
-	 * only for when delete whole app!
+	 * only for when delete whole app!!!
 	 */
 	delete: async (appId: string) => {
 		try {

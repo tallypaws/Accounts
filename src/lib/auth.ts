@@ -25,7 +25,7 @@ if (
 	process.exit(1);
 }
 
-const JWTPublicKey = `
+const JWTPublicKey = env.JWT_PUB_KEY ?? env.JWT_PUBLIC_KEY ?? `
 -----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuwPxouzmmiOqJlah9LVe
 4pZ7tdJdf4d5sNqqSn2Bh05aRZyIMyIVwpqHVVxQtim7/iIUODbsmI5WCevxHw/X
@@ -102,7 +102,7 @@ export function setSessionToken(cookies: Cookies, token: string) {
 	cookies.set('session_token', token, {
 		path: '/',
 		httpOnly: true,
-		secure: true,
+		secure: env.NODE_ENV === 'production',
 		sameSite: 'strict',
 		maxAge: 60 * 60 * 24 * 60 // 2 week
 	});
@@ -161,7 +161,13 @@ export async function verifyCookies(cookies: Cookies): Promise<
 		};
 	}
 
-	const payload: any = verifySessionToken(sessionToken);
+	let payload: any;
+	try {
+		payload = verifySessionToken(sessionToken);
+	} catch (e) {
+		clearSessionToken(cookies);
+		return { error: 'Session token expired' };
+	}
 
 	const { sub: userId, jti } = payload;
 
@@ -207,4 +213,30 @@ export function genId() {
 export function genSecret() {
 	const randomBits = crypto.randomBytes(32).toString('hex');
 	return `${randomBits}`;
+}
+
+export function generateOAuthAccessToken(opts: {
+	userId: string;
+	clientId: string;
+	scope?: string;
+	expiresInSeconds?: number;
+}) {
+	const expiresIn = opts.expiresInSeconds ?? 3600;
+	const jti = crypto.randomBytes(16).toString('hex');
+	const token = jwt.sign({ scope: opts.scope ?? '' }, JWTPrivateKey, {
+		algorithm: 'RS256',
+		issuer: ISS,
+		subject: opts.userId,
+		audience: opts.clientId,
+		jwtid: jti,
+		expiresIn: expiresIn
+	});
+	return { token, jti, expiresIn };
+}
+
+export function verifyOAuthAccessToken(token: string) {
+	return jwt.verify(token, JWTPublicKey, {
+		algorithms: ['RS256'],
+		issuer: ISS
+	});
 }

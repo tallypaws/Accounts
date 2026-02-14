@@ -2,6 +2,7 @@ import z from 'zod';
 import { DBMap } from './db';
 import { idToHue } from './utils';
 import { usernameRegex } from '$lib';
+import { identityDB } from './identity';
 
 const accountSchema = z.object({
 	id: z.string(),
@@ -13,8 +14,8 @@ const accountSchema = z.object({
 
 	authorizedApps: z.record(z.string(), z.literal(true)).optional()
 });
-  
-export type Account = z.infer<typeof accountSchema>;7
+
+export type Account = z.infer<typeof accountSchema>; 7
 
 const accountDBMap = new DBMap('accounts', accountSchema, null);
 
@@ -40,11 +41,34 @@ export const accountDB = {
 		return await accountDBMap.get(id);
 	},
 	setById: async (key: string, data: Args<(typeof accountDBMap)['set']>) => {
+		const existing = await accountDBMap.get(key);
+		if (existing && existing.username && existing.username !== data.username) {
+			await usernameMap.delete(existing.username);
+		}
 		await accountDBMap.set(key, data);
 		await usernameMap.set(data.username, key);
 	},
 	deleteById: async (key: string) => {
-		await usernameMap.delete(key);
+		const existing = await accountDBMap.get(key);
+
+		if (!existing) return;
+
+		const identities = await identityDB.getAllForAccount(key);
+		for (const identity of identities) {
+			await identityDB.deleteById(identity.id);
+		}
+
+		if (existing.avatarHash && existing.avatarHash !== 'default') {
+			try {
+				await avatarHandler.delete(key, existing.avatarHash);
+			} catch (e) {
+			}
+		}
+
+
+		if (existing && existing.username) {
+			await usernameMap.delete(existing.username);
+		}
 		await accountDBMap.delete(key);
 	},
 	deleteByUsername: async (key: string) => {

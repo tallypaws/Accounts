@@ -21,5 +21,5 @@ export const DELETE: RequestHandler = async ({ cookies, params }) => {
 	}
 
 	identityDB.deleteById(identityId);
-	return new Response();
+	return json({ success: true, identities: identities.filter((i) => i.id !== identityId) });
 };

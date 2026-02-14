@@ -57,7 +57,6 @@ export const load = (async ({ url, cookies }) => {
 		});
 	} else if (intent === 'link') {
 		const cookieResult = await verifyCookies(cookies);
-		console.log('cookieResult', cookieResult);
 		if ('error' in cookieResult || !cookieResult.account) {
 			redirect(302, '/login?redirectTo=' + encodeURIComponent(url.pathname + url.search));
 		}
@@ -75,7 +74,6 @@ export const load = (async ({ url, cookies }) => {
 			discordRedirectUri
 		});
 
-		console.log('set create intent');
 	}
 	discordAuthUrl.searchParams.set('state', stateId);
 	// redirect(302, discordAuthUrl.toString());

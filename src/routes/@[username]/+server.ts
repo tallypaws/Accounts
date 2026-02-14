@@ -20,7 +20,7 @@ export const GET: RequestHandler = async ({ request, params }) => {
 
 	const app = await applicationDB.getById(id);
 
-	if (!app || (await matchHash(secret, app.secretHash))) {
+	if (!app || !(await matchHash(secret, app.secretHash))) {
 		return json({ error: 'Invalid client credentials' }, { status: 401 });
 	}
 

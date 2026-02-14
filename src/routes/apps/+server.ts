@@ -76,7 +76,6 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 	const body = await request.json();
 	const parsed = await POSTSchema.safeParseAsync(body);
-	console.log(body);
 	if (!parsed.success) {
 		return json(
 			{
@@ -128,7 +127,6 @@ export const DELETE: RequestHandler = async ({ request, cookies }) => {
 
 	const body = await request.json();
 	const parsed = await DELETESchema.safeParseAsync(body);
-	console.log(body);
 	if (!parsed.success) {
 		return json(
 			{

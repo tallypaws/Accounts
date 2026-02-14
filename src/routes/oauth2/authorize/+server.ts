@@ -1,13 +1,17 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import crypto from 'node:crypto';
+import { verifyOAuthParams } from '$lib/oauth-sign';
 import { accountDB } from '$lib/accounts';
-import { verifySessionToken } from '$lib/auth';
+import { verifyCookies, verifySessionToken } from '$lib/auth';
 import { applicationDB } from '$lib/applications';
 import { ScopeBitField } from '$lib/utils';
 import { json } from '@sveltejs/kit';
+import { scheduleInternalEvent } from '$lib/scheduler';
+import { m } from '@thetally/toolbox';
 
 function genAuthCode() {
-	return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+	return crypto.randomBytes(20).toString('hex');
 }
 
 export const POST: RequestHandler = async ({ request, getClientAddress, cookies }) => {
@@ -15,41 +19,25 @@ export const POST: RequestHandler = async ({ request, getClientAddress, cookies 
 
 	const body = await request.json();
 
-	console.log(body);
 
-	const refreshToken = cookies.get('session_token');
-	const { client_id, redirect_uri, state, scope } = body;
+	const { client_id, redirect_uri, state, scope, sig } = body;
 
 	const params = { client_id, redirect_uri, state, scope };
 	const paramString = encodeURIComponent(JSON.stringify(params));
 
-	if (!refreshToken) {
-		throw redirect(302, `/login?redirect=/oauth2/authorize&params=${paramString}`);
+	const cookieResult = await verifyCookies(cookies);
+	if ('error' in cookieResult || !cookieResult.account) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
-	const payload: any = verifySessionToken(refreshToken);
-	const { sub: userId, jti } = payload;
-	console.log(payload);
-	const account = await accountDB.getById(userId);
-	if (!account || !account.sessions?.[jti]) {
-		throw redirect(302, `/login?redirect=/oauth2/authorize&params=${paramString}`);
-	}
-
-	const session = account.sessions?.[jti];
-	if (!session) {
-		// return json({ error: 'Session not found' }, { status: 404 });
-		throw redirect(302, `/login?redirect=/oauth2/authorize&params=${paramString}`);
-	}
-
-	if (Date.now() > session.expiresAt) {
-		delete account.sessions[jti];
-		await accountDB.setById(account.id, account);
-		cookies.delete('refresh', { path: '/', domain: 'accounts.tally.gay' });
-		// return json({ error: 'Refresh token expired' }, { status: 401 });
-		throw redirect(302, `/login?redirect=/oauth2/authorize&params=${paramString}`);
-	}
-	if (!client_id || !redirect_uri || !scope) {
+	const account = cookieResult.account
+	if (!client_id || !redirect_uri || !scope || !sig) {
 		return json({
 			error: 'Invalid parameters'
+		});
+	}
+	if (!verifyOAuthParams(redirect_uri, scope, client_id, sig)) {
+		return json({
+			error: 'Invalid or tampered parameters'
 		});
 	}
 	const client = await applicationDB.getById(client_id);
@@ -65,16 +53,21 @@ export const POST: RequestHandler = async ({ request, getClientAddress, cookies 
 	}
 
 	const authCode = genAuthCode();
+	const expiresAt = Date.now() + m(5).toMs()
 
 	client.authCodes ??= {};
 
 	client.authCodes[authCode] = {
-		userId: userId,
+		userId: account.id,
 		createdAt: Date.now(),
-		exp: Date.now() + 1000 * 60 * 5,
+		exp: expiresAt,
 		scope: scope,
 		redirectUri: redirect_uri
 	};
+
+	scheduleInternalEvent('deleteAuthCode', expiresAt, { clientId: client_id, code: authCode }).catch(e => {
+		console.error(`Failed to schedule auth code cleanup for ${authCode}:`, e);
+	});
 
 	account.authorizedApps ??= {};
 	account.authorizedApps[client_id] = true;

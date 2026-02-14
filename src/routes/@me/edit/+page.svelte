@@ -2,8 +2,9 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-	console.log('data', data);
 	let account = $state($state.snapshot(data.account));
+
+	let identities = $state(data.identities);
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Avatar from '$lib/components/ui/avatar/index.js';
 	import { Button } from '$lib/components/ui/button';
@@ -25,8 +26,9 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Discord, GitHub, Google } from '$lib/icons';
 
-	import { type Component } from 'svelte';
+	import { onMount, type Component } from 'svelte';
 	import Dialog from '$lib/components/ui/dialog';
+	import { deferred, s, seconds } from '@thetally/toolbox';
 
 	let changed = $state(false);
 	let loading = $state(false);
@@ -82,7 +84,6 @@
 				method: 'POST',
 				body: inputValue
 			}).then(json);
-			console.log(response);
 			if (response.success) {
 				account.avatarHash = response.avatarHash;
 				tempUrl = '';
@@ -137,10 +138,13 @@
 	import { promptFor } from '../../prompting';
 	import { toast } from 'svelte-sonner';
 	import { SiDiscord, SiGithub, SiGoogle } from '@icons-pack/svelte-simple-icons';
+	import { slide } from 'svelte/transition';
+	import { goto } from '$app/navigation';
+	import UsernameChecklist from '$lib/components/UsernameChecklist.svelte';
 
 	async function updateIdentites() {
 		const response = await fetch('/api/accounts/identities').then(json);
-		data.identities = response.identities;
+		identities = response.identities;
 	}
 
 	async function deleteIdentity(id: string) {
@@ -150,7 +154,7 @@
 			});
 
 			if (res.ok) {
-				resolve(true);
+				resolve(res.json());
 			} else {
 				rej(new Error('Failed to delete identity'));
 			}
@@ -162,8 +166,8 @@
 			error: 'Failed to delete identity'
 		});
 
-		await promise;
-		await updateIdentites();
+		const result = (await promise) as any;
+		identities = result.identities;
 	}
 
 	let passwd = $state('');
@@ -171,6 +175,11 @@
 	const zxcvbnResult = $derived(zxcvbn(newPasswd));
 	let newPasswdConfirm = $state('');
 	let changingPassword = $state(false);
+
+	let addDialogOpen = $state(false);
+	let addPasswordDialogOpen = $state(false);
+	let changePasswordDialogOpen = $state(false);
+
 	async function changePassword() {
 		changingPassword = true;
 		try {
@@ -223,8 +232,66 @@
 			changingPassword = false;
 			newPasswd = '';
 			newPasswdConfirm = '';
+			passwd = '';
+			changePasswordDialogOpen = false;
 		}
 	}
+
+	async function addPassword() {
+		changingPassword = true;
+		try {
+			const response = await fetch('/api/accounts/identities/password/add', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					password: newPasswd
+				})
+			});
+
+			if (!response.ok) {
+				toast.error((await response.json()).error || 'Failed to change password');
+
+				return;
+			}
+
+			const def = deferred();
+
+			toast.promise(def.promise, {
+				loading: 'Adding password...',
+				success: 'Password added',
+				error: 'Failed to add password'
+			});
+
+			const result = await response.json();
+
+			def.resolve(true);
+			addDialogOpen = false;
+			addPasswordDialogOpen = false;
+			updateIdentites();
+			setTimeout(() => {
+				updateIdentites();
+			}, 1000);
+		} catch (error) {
+		} finally {
+			changingPassword = false;
+			newPasswd = '';
+			newPasswdConfirm = '';
+		}
+	}
+	onMount(() => {
+		const intid = setInterval(() => {
+			updateIdentites();
+		}, 4000);
+		return () => {
+			clearInterval(intid);
+		};
+	});
+
+	let newUsername = $state('');
+	let usernameProcessing = $state(false);
+	let usernameValid = $state(false);
 </script>
 
 <!-- <h1>login</h1>
@@ -353,7 +420,7 @@
 			<Card.Content class="flex flex-col gap-4">
 				<div class="flex items-center justify-between">
 					<h1 class="text-lg font-semibold">Log In Methods</h1>
-					<Dialog.Root>
+					<Dialog.Root bind:open={addDialogOpen}>
 						<Dialog.Trigger>
 							<Button size="icon" variant="outline">
 								<Plus class="size-4" />
@@ -362,13 +429,50 @@
 						<Dialog.Content>
 							<h2 class="text-lg font-semibold">Add Log In Method</h2>
 							<div class="flex flex-row items-center justify-center gap-4">
-								<Button  variant="outline" size="icon">
-									<Key class="size-4" />
-								</Button>
-								<Button variant="outline" size="icon" href="/login/provider/discord/authenticate?intent=link&redirectTo=/@me/edit">
+								<Dialog.Root bind:open={addPasswordDialogOpen}>
+									<Dialog.Trigger disabled={identities.some((i) => i.provider === 'password')}>
+										<Button
+											variant="outline"
+											size="icon"
+											disabled={identities.some((i) => i.provider === 'password')}
+										>
+											<Key class="size-4" />
+										</Button>
+									</Dialog.Trigger>
+									<Dialog.Content>
+										<h2 class="text-lg font-semibold">Add Password</h2>
+										<div class="flex flex-col gap-2">
+											<PasswordBar password={newPasswd}>
+												<Input type="password" placeholder="New Password" bind:value={newPasswd} />
+											</PasswordBar>
+											<Input
+												type="password"
+												placeholder="Confirm New Password"
+												invalid={newPasswd !== newPasswdConfirm}
+												bind:value={newPasswdConfirm}
+												invalidMessage="Passwords do not match"
+											/>
+										</div>
+										<Button
+											onclick={addPassword}
+											disabled={!newPasswd || newPasswd !== newPasswdConfirm || changingPassword}
+										>
+											Add Password
+										</Button>
+									</Dialog.Content>
+								</Dialog.Root>
+								<Button
+									variant="outline"
+									size="icon"
+									href="/login/provider/discord/authenticate?intent=link&redirectTo=/@me/edit"
+								>
 									<SiDiscord size={20} />
 								</Button>
-								<Button variant="outline" size="icon" disabled>
+								<Button
+									variant="outline"
+									size="icon"
+									href="/login/provider/github/authenticate?intent=link&redirectTo=/@me/edit"
+								>
 									<SiGithub size={20} />
 								</Button>
 								<Button variant="outline" size="icon" disabled>
@@ -379,8 +483,11 @@
 					</Dialog.Root>
 				</div>
 				<div class="flex flex-col gap-2">
-					{#each data.identities as identity}
-						<div class="group relative flex items-center justify-between rounded-lg border p-3">
+					{#each identities as identity}
+						<div
+							class="group relative flex items-center justify-between rounded-lg border p-3"
+							transition:slide
+						>
 							{#if identity.provider === 'discord'}
 								<div class="flex items-center gap-3">
 									<div class="">
@@ -406,7 +513,7 @@
 									variant="ghost"
 									class="text-destructive opacity-90 hover:opacity-100"
 									size="icon"
-									disabled={data.identities.length === 1}
+									disabled={identities.length === 1}
 									onclick={async () => {
 										if (
 											await promptFor('confirmation', {
@@ -425,12 +532,39 @@
 								</Button>
 							{:else if identity.provider === 'github'}
 								<div class="flex items-center gap-3">
-									<GitHub class="size-10 p-1 text-muted-foreground" />
+									<div class="">
+										<GitHub
+											class="absolute top-1 left-1 size-6 rounded-sm bg-card p-0.75 text-muted-foreground"
+										/>
+										<img src={identity.data.avatarUrl} alt="" class="size-10 rounded-full" />
+									</div>
+									<div class="flex flex-col leading-tight">
+										<span class="font-medium">
+											{identity.provider.charAt(0).toUpperCase() + identity.provider.slice(1)}
+										</span>
+										<span class="text-sm text-muted-foreground">
+											Connected as <span class="font-mono">{identity.data.username}</span>
+										</span>
+									</div>
 								</div>
 								<Button
 									variant="ghost"
 									class="text-destructive opacity-90 hover:opacity-100"
 									size="icon"
+									disabled={identities.length === 1}
+									onclick={async () => {
+										if (
+											await promptFor('confirmation', {
+												title: 'Are you sure?',
+												description:
+													"This will permanently delete this login method and you won't be able to use it to log in anymore.",
+												confirmText: 'Delete',
+												cancelText: 'Cancel'
+											})
+										) {
+											await deleteIdentity(identity.id);
+										}
+									}}
 								>
 									<Minus class="size-4" />
 								</Button>
@@ -455,7 +589,7 @@
 									</div>
 								</div>
 								<div>
-									<Dialog.Root>
+									<Dialog.Root bind:open={changePasswordDialogOpen}>
 										<Dialog.Trigger>
 											<Button
 												variant="ghost"
@@ -496,7 +630,7 @@
 									<Button
 										variant="ghost"
 										class="text-destructive opacity-90 hover:opacity-100"
-										disabled={data.identities.length === 1}
+										disabled={identities.length === 1}
 										size="icon"
 										onclick={async () => {
 											if (
@@ -545,6 +679,118 @@
 							{/if}
 						</div>
 					{/each} -->
+				</div>
+			</Card.Content>
+		</Card.Root>
+		<Card.Root class="l relative w-[70%] max-w-180">
+			<Card.Content class="flex flex-col gap-4">
+				<div class="flex items-center justify-between">
+					<h1 class="text-lg font-semibold">Danger Zone!!!!</h1>
+				</div>
+				<div class="flex flex-col gap-2">
+					<Button
+						variant="destructive"
+						class="w-full"
+						onclick={async () => {
+							if (
+								(
+									await promptFor('confirmation', {
+										title: 'Are you sure?',
+										description: 'This will permanently delete your account.',
+										confirmText: 'Continue',
+										cancelText: 'Cancel',
+										confirmCountdown: s(1).toMs()
+									})
+								).confirmed
+							) {
+								if (
+									(
+										await promptFor('confirmation', {
+											title: 'Are you really sure?',
+											description: 'This action cannot be undone.',
+											confirmText: 'Okay',
+											cancelText: 'Cancel',
+											confirmCountdown: s(2).toMs()
+										})
+									).confirmed
+								) {
+									if (
+										(
+											await promptFor('confirmation', {
+												title: 'ARE YOU FOR REAL?!?!?',
+												description: 'Are you really really sure???',
+												confirmText: 'YES I AM',
+												cancelText: 'Cancel',
+												confirmCountdown: s(3).toMs()
+											})
+										).confirmed
+									) {
+										if (
+											(
+												await promptFor('confirmation', {
+													title: 'This is your last chance!',
+													description: 'Are you really really really really sure?',
+													confirmText: 'YE SPLEASE DLETE MY ACCOUNT',
+													cancelText: 'Cancel',
+													confirmCountdown: s(5).toMs()
+												})
+											).confirmed
+										) {
+											const response = await fetch('/api/accounts/delete', {
+												method: 'DELETE'
+											});
+											if (response.ok) {
+												toast.success('Account deleted successfully');
+												goto('/');
+											} else {
+												toast.error('Failed to delete account');
+											}
+										}
+									}
+								}
+							}
+						}}
+					>
+						Delete Account
+					</Button>
+
+					<Button
+						variant="outline"
+						class="w-full"
+						onclick={async () => {
+							const usernameChangeResult = await promptFor('changeUsername', {
+								currentUsername: account.username
+							});
+							console.log(usernameChangeResult);
+							if (usernameChangeResult?.username) {
+								const confirmationResult = await promptFor('confirmation', {
+									title: 'Change username?',
+									description: `Your username will be changed to ${usernameChangeResult.username}. Your current username ${account.username} will be available for others to use.`,
+									confirmText: 'Change Username',
+									cancelText: 'Cancel',
+								});
+								if (confirmationResult.confirmed) {
+									const response = await fetch('/api/accounts/username', {
+										method: 'PATCH',
+										headers: {
+											'Content-Type': 'application/json'
+										},
+										body: JSON.stringify({
+											username: usernameChangeResult.username
+										})
+									});
+									if (response.ok) {
+										toast.success('Username changed successfully');
+										account.username = usernameChangeResult.username;
+									} else {
+										toast.error('Failed to change username');
+									}
+								}
+							}
+						}}
+					>
+						Change Username
+					</Button>
 				</div>
 			</Card.Content>
 		</Card.Root>

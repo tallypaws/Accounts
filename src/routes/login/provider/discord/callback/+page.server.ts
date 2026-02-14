@@ -2,11 +2,12 @@ import { generateSessionToken, genId, setSessionToken } from '$lib/auth';
 import { exchangeDiscordCode, getDiscordUser } from '$lib/discord';
 import { identityDB, identityLookup, type DiscordIdentity } from '$lib/identity';
 import { generateSession, sessionDB } from '$lib/sessions';
-import { m, TimedMap } from '@thetally/toolbox';
+import { m, TimedMap, d } from '@thetally/toolbox';
 import { _states as states } from '../authenticate/+page.server';
 import type { PageServerLoad } from './$types';
 import { error as kitError } from '@sveltejs/kit';
 import { accountDB } from '$lib/accounts';
+import { scheduleInternalEvent } from '$lib/scheduler';
 
 const discordCreationReferrals = new TimedMap<
 	string,
@@ -16,6 +17,7 @@ const discordCreationReferrals = new TimedMap<
 		discordAvatar: string | null;
 		redirectTo: string | undefined;
 		createdAt: number;
+		refreshToken: string | null;
 	}
 >(m(30).toMs());
 
@@ -38,13 +40,6 @@ export const load = (async ({ request, url, cookies }) => {
 	const errorDescription = url.searchParams.get('error_description');
 	7;
 
-	console.log({
-		code,
-		state,
-		error,
-		errorDescription,
-		storedState
-	});
 
 	const token = await exchangeDiscordCode(code, storedState.discordRedirectUri).catch((e) => {
 		kitError(400, { message: 'Failed to exchange code for token: ' + e.message });
@@ -52,32 +47,16 @@ export const load = (async ({ request, url, cookies }) => {
 	const accessToken = token.access_token;
 	const tokenType = token.token_type;
 
-	console.log({ token, accessToken, tokenType });
 
 	const discordUser = await getDiscordUser(accessToken).catch((e) => {
 		kitError(400, { message: 'Failed to fetch user info: ' + e.message });
 	});
 
-	console.log({ user: discordUser });
-
 	const identity = await identityDB.getByProvider('discord', discordUser.id);
 
-	console.log({ identity });
 	if (storedState.intent) {
 		if (storedState.intent.type === 'login') {
 			if (!identity) {
-				// ask to create account
-				console.log({
-					loggedIn: false,
-					action: 'prompt_create_account',
-					username: `${discordUser.username}`,
-					avatar: discordUser.avatar
-						? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}`
-						: null,
-					provider: 'discord',
-					providerId: discordUser.id,
-					redirectTo: storedState.intent.redirectTo
-				});
 
 				const discordCreationReferralCode = genId();
 
@@ -86,7 +65,8 @@ export const load = (async ({ request, url, cookies }) => {
 					discordUsername: discordUser.username,
 					discordAvatar: discordUser.avatar,
 					redirectTo: storedState.intent.redirectTo,
-					createdAt: Date.now()
+					createdAt: Date.now(),
+					refreshToken: token.refresh_token
 				});
 
 				return {
@@ -103,6 +83,26 @@ export const load = (async ({ request, url, cookies }) => {
 			}
 
 			console.log('Logging in user with identity ID:', identity.id);
+			
+			if (identity.provider === 'discord') {
+				const lastRefresh = (identity as any).lastRefreshedAt || identity.createdAt;
+				const timeSinceLastRefresh = Date.now() - lastRefresh;
+				
+				if (timeSinceLastRefresh > 1000 * 60 * 60 * 24) {
+					const updatedIdentity = {
+						...identity,
+						refreshToken: token.refresh_token,
+						lastRefreshedAt: Date.now()
+					};
+					await identityDB.setById(identity.id, updatedIdentity);
+					
+					const nextRefreshTime = Date.now() + d(4).toMs();
+					scheduleInternalEvent('refreshDiscordIdentity', nextRefreshTime, { identityId: identity.id }).catch(e => {
+						console.error(`Failed to schedule Discord identity refresh for ${identity.id}:`, e);
+					});
+				}
+			}
+
 			const session = generateSession(identity.accountId, identity.id);
 			await sessionDB.set(session.id, session);
 			setSessionToken(
@@ -111,7 +111,6 @@ export const load = (async ({ request, url, cookies }) => {
 			);
 
 			const account = await accountDB.getById(identity.accountId);
-			// redirect(302, storedState.intent.redirectTo ?? '/');
 			return {
 				provider: 'discord',
 				username: identity.data.username,
@@ -132,13 +131,21 @@ export const load = (async ({ request, url, cookies }) => {
 				accountId: storedState.intent.accountId,
 				provider: 'discord',
 				createdAt: Date.now(),
+				lastRefreshedAt: Date.now(),
 				providerId: discordUser.id,
+				refreshToken: token.refresh_token,
 				data: {
 					avatarHash: discordUser.avatar,
 					username: `${discordUser.username}`
 				}
 			};
 			await identityDB.setById(newIdentity.id, newIdentity);
+
+			// Schedule first refresh for 4 days from now
+			const firstRefreshTime = Date.now() + d(4).toMs();
+			scheduleInternalEvent('refreshDiscordIdentity', firstRefreshTime, { identityId: newIdentity.id }).catch(e => {
+				console.error(`Failed to schedule Discord identity refresh for ${newIdentity.id}:`, e);
+			});
 
 			const account = await accountDB.getById(storedState.intent.accountId);
 
@@ -166,7 +173,8 @@ export const load = (async ({ request, url, cookies }) => {
 				discordUsername: discordUser.username,
 				discordAvatar: discordUser.avatar,
 				redirectTo: storedState.intent.redirectTo,
-				createdAt: Date.now()
+				createdAt: Date.now(),
+				refreshToken: token.refresh_token
 			});
 
 			return {

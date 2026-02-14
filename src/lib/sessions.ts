@@ -1,6 +1,7 @@
 import z from "zod";
 import { DBMap, DBNestedMapX } from "./db";
 import crypto from "crypto";
+import { scheduleInternalEvent } from "./scheduler";
 
 const sessionSchema = z.object({
 	id: z.string(),
@@ -40,13 +41,19 @@ export function generateSession(
 ) {
 	const jti = crypto.randomBytes(16).toString('hex');
 
+	const expiresAt = Date.now() + 60 * 60 * 24 * 60 * 1000;
 	const session = {
 		id: jti,
 		accountId: accountId,
 		identityId: identityId,
 		createdAt: Date.now(),
-		expiresAt: Date.now() + 60 * 60 * 24 * 60 * 1000
+		expiresAt: expiresAt
 	};
+	
+	scheduleInternalEvent('deleteSession', expiresAt, { sessionId: jti }).catch(e => {
+		console.error(`Failed to schedule session cleanup for ${jti}:`, e);
+	});
+
 	return session;
 }
 

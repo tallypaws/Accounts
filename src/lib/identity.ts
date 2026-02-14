@@ -27,6 +27,8 @@ const passwordIdentitySchema = baseIdentitySchema.extend({
 
 const discordIdentitySchema = baseIdentitySchema.extend({
 	provider: z.literal('discord'),
+	refreshToken: z.string(),
+	lastRefreshedAt: z.number().optional(),
 	data: z.object({
 		username: z.string(),
 		avatarHash: z.string().nullable()
@@ -35,6 +37,7 @@ const discordIdentitySchema = baseIdentitySchema.extend({
 
 const githubIdentitySchema = baseIdentitySchema.extend({
 	provider: z.literal('github'),
+	accessToken: z.string(),
 	data: z.object({
 		username: z.string(),
 		avatarUrl: z.string().nullable()

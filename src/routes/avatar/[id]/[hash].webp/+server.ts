@@ -7,7 +7,6 @@ export const GET: RequestHandler = async ({ params }) => {
 	const { id, hash } = params;
 	const path = avatarHandler.getPath(hash, id);
 
-	console.log('Fetching avatar from path:', path, 'id:', id, 'hash:', hash);
 
 	const statPromise = stat(path);
 	const stream = await avatarHandler.getReadStream(path);

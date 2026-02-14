@@ -13,9 +13,7 @@ const createSchema = z.object({
 });
 
 export async function POST({ request, cookies }) {
-	console.log('Creating account');
 	const bodyText = await request.text();
-	console.log(bodyText);
 	const bodyJson = JSON.parse(bodyText);
 	const parsed = createSchema.safeParse(bodyJson);
 	if (!parsed.success) {
@@ -28,9 +26,7 @@ export async function POST({ request, cookies }) {
 		);
 	}
 	const { username, displayName, password } = parsed.data;
-	console.log('account:', { username, displayName, password });
 	const existing = await accountDB.getByUsername(username);
-	console.log(existing, username);
 	if (existing) {
 		return json(
 			{
@@ -71,7 +67,6 @@ export async function POST({ request, cookies }) {
 
 	await avatarHandler.upload(acc.id, 'default', avatarBuffer);
 
-	console.log('account:', acc);
 
 	await accountDB.setById(acc.id, acc);
 	return json({ success: true });

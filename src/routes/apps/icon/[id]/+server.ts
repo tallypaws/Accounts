@@ -76,9 +76,7 @@ export const POST: RequestHandler = async ({ request, cookies, params }) => {
 	}
 	const userId = app.id;
 
-	console.log(request.body);
 	if (!request.body) {
-		console.log('No body in request', request);
 		throw error(400, 'No body');
 	}
 

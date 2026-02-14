@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import z from 'zod';
 import { applicationDB } from '$lib/applications';
-import { matchHash } from '$lib/auth';
+import { matchHash, generateOAuthAccessToken } from '$lib/auth';
 import { accountDB } from '$lib/accounts';
 
 const POSTSchema = z.object({
@@ -15,13 +15,21 @@ const POSTSchema = z.object({
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json();
-	const parsed = POSTSchema.safeParse(body);
+	const mapped = {
+		clientId: (body as any).client_id ?? (body as any).clientId,
+		clientSecret: (body as any).client_secret ?? (body as any).clientSecret,
+		code: (body as any).code,
+		redirectUri: (body as any).redirect_uri ?? (body as any).redirectUri,
+		grantType: (body as any).grant_type ?? (body as any).grantType
+	};
+
+	const parsed = POSTSchema.safeParse(mapped);
 	if (!parsed.success) {
 		return json({ error: 'Invalid request', details: parsed.error }, { status: 400 });
 	}
 
 	const client = await applicationDB.getById(parsed.data.clientId);
-	if (!client || (await matchHash(parsed.data.clientSecret, client.secretHash))) {
+	if (!client || !(await matchHash(parsed.data.clientSecret, client.secretHash))) {
 		return json({ error: 'Invalid client credentials' }, { status: 401 });
 	}
 
@@ -35,7 +43,13 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json({ error: 'Invalid redirect URI' }, { status: 400 });
 	}
 
-	const user = accountDB.getById(authCode.userId);
+	if (authCode.exp && Date.now() > authCode.exp) {
+		delete client.authCodes?.[code];
+		await applicationDB.setById(client.id, client);
+		return json({ error: 'Invalid authorization code' }, { status: 400 });
+	}
+
+	const user = await accountDB.getById(authCode.userId);
 	if (!user) {
 		delete client.authCodes?.[code];
 		await applicationDB.setById(client.id, client);
@@ -45,10 +59,17 @@ export const POST: RequestHandler = async ({ request }) => {
 	delete client.authCodes?.[code];
 	await applicationDB.setById(client.id, client);
 
-
-    // scope literally does nothing rn
-	return json({
+	const { token, expiresIn } = generateOAuthAccessToken({
 		userId: authCode.userId,
+		clientId: client.id,
+		scope: authCode.scope,
+		expiresInSeconds: 3600
+	});
+
+	return json({
+		access_token: token,
+		token_type: 'Bearer',
+		expires_in: expiresIn,
 		scope: authCode.scope
 	});
 };

@@ -27,6 +27,10 @@
 			fn: () => (username.length >= 1 ? 'met' : 'unmet')
 		},
 		{
+			text: 'At least 3 characters',
+			fn: () => (username.length >= 3 ? 'met' : 'unmet')
+		},
+		{
 			text: 'No more than 32 characters',
 			fn: () => (username.length <= 32 ? 'met' : 'unmet')
 		},
@@ -72,6 +76,9 @@
 		// await new Promise((resolve) => setTimeout(resolve, 1000));
 		checkingUsername = true;
 		usernameTaken = false;
+		if (!username) {
+			return false;
+		}
 		try {
 			const res = await fetch(`/api/accounts/username-taken/${encodeURIComponent(username)}`);
 			if (!res.ok) {
@@ -132,11 +139,11 @@
 		processing = false;
 	});
 
-  const isValid = $derived(requirementsMet.every((r) => r.met === 'met'));
+	const isValid = $derived(requirementsMet.every((r) => r.met === 'met'));
 
-  $effect(() => {
-    valid = isValid;
-  });
+	$effect(() => {
+		valid = isValid;
+	});
 </script>
 
 <div class="mx-4 mt-4 flex flex-col gap-2">

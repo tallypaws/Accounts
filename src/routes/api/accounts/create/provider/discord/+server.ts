@@ -16,9 +16,7 @@ const createSchema = z.object({
 });
 
 export async function POST({ request, url, cookies }) {
-	console.log('Creating account');
 	const bodyText = await request.text();
-	console.log(bodyText);
 	const bodyJson = JSON.parse(bodyText);
 	const parsed = createSchema.safeParse(bodyJson);
 	if (!parsed.success) {
@@ -31,7 +29,6 @@ export async function POST({ request, url, cookies }) {
 		);
 	}
 
-	console.log(discordCreationReferrals.size);
 	const { username, displayName, referralCode } = parsed.data;
 
 	const referralData = discordCreationReferrals.get(referralCode);
@@ -45,9 +42,7 @@ export async function POST({ request, url, cookies }) {
 	}
 	const loginAfter = url.searchParams.get('login') === 'true';
 
-	console.log('creating account with discord:', { username, displayName, referralCode });
 	const existing = await accountDB.getByUsername(username);
-	console.log(existing, username);
 	if (existing) {
 		return json(
 			{
@@ -73,7 +68,8 @@ export async function POST({ request, url, cookies }) {
 			avatarHash: referralData.discordAvatar,
 			username: referralData.discordUsername
 		},
-		createdAt: Date.now()
+		createdAt: Date.now(),
+		refreshToken: referralData.refreshToken ?? ""
 	};
 
 	await accountDB.setById(acc.id, acc);
@@ -82,7 +78,6 @@ export async function POST({ request, url, cookies }) {
 	let avatarBuffer: Buffer<ArrayBufferLike> | null = null;
 
 	const discordAvatarUrl = `https://cdn.discordapp.com/avatars/${referralData.discordId}/${referralData.discordAvatar}`;
-	console.log('Fetching Discord avatar from URL:', discordAvatarUrl);
 
 	try {
 		const result = await fetch(discordAvatarUrl);
@@ -95,7 +90,7 @@ export async function POST({ request, url, cookies }) {
 				.webp({ quality: 80 })
 				.toBuffer();
 		}
-	} catch (e) {}
+	} catch (e) { }
 
 	if (!avatarBuffer) {
 		const defaultBuffer = await avatarHandler.getDefaultAvatarBuffer();
@@ -109,7 +104,6 @@ export async function POST({ request, url, cookies }) {
 
 	await avatarHandler.upload(acc.id, 'default', avatarBuffer);
 
-	console.log('account:', acc);
 
 	await accountDB.setById(acc.id, acc);
 

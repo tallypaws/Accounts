@@ -13,7 +13,7 @@ export const load = (async ({ cookies }) => {
 	if (!admins.has(cookieResult.account.username)) {
 		error(403, 'no. shoo shoo! go away! i dont want you here! >:(');
 	}
-
+	// my l is normal
 	const allKeys = await applicationDB.getAllKeys();
 	const apps = (await Promise.all(allKeys.map((key) => applicationDB.getById(key))))
 		.filter(Boolean)
