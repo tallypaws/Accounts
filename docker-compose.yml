@@ -10,7 +10,7 @@ services:
     networks:
       - surrealdb-net
     volumes:
-      - ~/Accounts/avatars:/app/avatars
+      - /home/tally/Accounts/avatars:/app/avatars
 
 networks:
   surrealdb-net:
