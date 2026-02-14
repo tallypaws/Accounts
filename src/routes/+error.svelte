@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card/index.js';
 </script>
 
@@ -12,6 +13,9 @@
 			<p class="text-center text-muted-foreground">
 				{page.error?.message}
 			</p>
+			<Button href="/" variant="outline" class="mt-6">
+				Go back home
+			</Button>
 		</Card.Content>
 	</Card.Root>
 </div>
