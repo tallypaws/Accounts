@@ -18,7 +18,7 @@ export const load = (async ({ request, url }) => {
 		};
 	}
 
-	const app = await applicationDB.getById('1jh83ap71ff9f044a');
+	const app = await applicationDB.getById('1jhd8su1ffa62d2cc');
 	if (!app) {
 		return { 
 			error: 'App not found',
