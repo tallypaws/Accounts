@@ -7,7 +7,7 @@ import type { PageServerLoad } from './$types';
 
 export const load = (async ({ request, url }) => {
 	const code = url.searchParams.get('code');
-	const redirectUri = url.searchParams.get('redirect_uri') || 'http://localhost:5173/testoauth2';
+	const redirectUri = url.searchParams.get('redirect_uri') || 'https://accounts.tally.gay/testoauth2';
 	
 	if (!code) {
 		return { 
