@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt';
 import { accountDB, type Account } from './accounts';
 import crypto from 'node:crypto';
 import { sessionDB } from './sessions';
+import { days } from '@thetally/toolbox';
 
 const ALGO = 'aes-256-gcm';
 const totpMasterKey = env.TOTP_MASTER_KEY!;
@@ -103,8 +104,8 @@ export function setSessionToken(cookies: Cookies, token: string) {
 		path: '/',
 		httpOnly: true,
 		secure: env.NODE_ENV === 'production',
-		sameSite: 'strict',
-		maxAge: 60 * 60 * 24 * 60 // 2 week
+		sameSite: 'lax',
+		maxAge: days(60).toSeconds()
 	});
 }
 
@@ -114,7 +115,7 @@ export function clearSessionToken(cookies: Cookies) {
 
 const ISS = 'https://accounts.tally.gay';
 
-export const SessionTokenExpSeconds = 60 * 60 * 24 * 60; // 60 days
+export const SessionTokenExpSeconds = days(60).toSeconds();	
 
 export function generateSessionToken(opts: { userId: string; jti: string }) {
 	return jwt.sign({}, JWTPrivateKey, {
@@ -135,7 +136,7 @@ export function verifySessionToken(token: string) {
 	});
 }
 
-const replaceExpiringCookieWindow = 60 * 60 * 24 * 7; // 7 days
+const replaceExpiringCookieWindow = days(7).toMilliseconds();
 
 export async function verifyCookies(cookies: Cookies): Promise<
 	| {
