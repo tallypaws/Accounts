@@ -5,7 +5,7 @@ import { identityDB } from '$lib/identity';
 import z from 'zod';
 
 const addSchema = z.object({
-    password: z.string().min(8).max(128)
+    password: z.string().min(6).max(128)
 });
 
 export const GET: RequestHandler = async ({ cookies }) => {

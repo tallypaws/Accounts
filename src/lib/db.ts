@@ -57,6 +57,7 @@ export async function connectDB() {
 			});
 
 			connected = true;
+			console.log('Connected to DB');	
 			for (const cb of awaitingConnection) {
 				cb();
 			}

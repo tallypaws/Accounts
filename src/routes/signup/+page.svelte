@@ -7,16 +7,29 @@
 	import * as Avatar from '$lib/components/ui/avatar/index.js';
 	import { Input } from '$lib/components/ui/input';
 	import { Spinner } from '$lib/components/ui/spinner';
+	import * as Popover from '$lib/components/ui/popover/index.js';
 	import { X } from '@lucide/svelte';
 	import { SiDiscord, SiGithub, SiGoogle } from '@icons-pack/svelte-simple-icons';
 	import PasswordBar from '$lib/components/PasswordBar.svelte';
+	import PasswordChecklist from '$lib/components/PasswordChecklist.svelte';
+	import UsernameChecklist from '$lib/components/UsernameChecklist.svelte';
+	import { slide } from 'svelte/transition';
 
 	let { data }: PageProps = $props();
 	let user = $state('');
+	let usernameProcesssing = $state(false);
+	let usernameValid = $state(false);
+	let usernameActive = $state(false);
+
 	let passwd = $state('');
 	let error = $state('');
 	let criticalError = $state('');
 	let loading = $state(false);
+
+	let passwdValid = $state(false);
+	let passwdProcessing = $state(false);
+	let passwdActive = $state(false);
+
 	const redirect = page.url.searchParams.get('redirect') ?? '/';
 	if (!redirect.startsWith('/')) {
 		criticalError = 'Invalid redirect url';
@@ -96,16 +109,61 @@
 					{#if error}
 						<p class="text-destructive">{error}</p>
 					{/if}
-					<Input bind:value={user} oninput={() => (error = '')} placeholder="Username" />
+
+					<div class="relative">
+						<Input
+							bind:value={user}
+							oninput={() => (error = '')}
+							onfocus={() => (usernameActive = true)}
+							onblur={() => (usernameActive = false)}
+							invalid={usernameValid === false && !!user}
+							placeholder="Username"
+						/>
+
+						{#if usernameActive}
+							<div
+								transition:slide
+								class="absolute bottom-full mb-2 w-full rounded-md bg-card/50 py-2 outline-2 outline-muted backdrop-blur-md"
+							>
+								<UsernameChecklist
+									username={user}
+									bind:valid={usernameValid}
+									bind:processing={usernameProcesssing}
+								/>
+							</div>
+						{/if}
+					</div>
+
 					<!-- <Input
 						bind:value={passwd}
 						oninput={() => (error = '')}
 						placeholder="Password"
 						type="password"
 					/> -->
-					<PasswordBar password={passwd}>
-						<Input type="password" placeholder="Password" bind:value={passwd} />
-					</PasswordBar>
+					<div class="relative">
+						<PasswordBar password={passwd}>
+							<Input
+								type="password"
+								placeholder="Password"
+								onfocus={() => (passwdActive = true)}
+								onblur={() => (passwdActive = false)}
+								invalid={passwdValid === false && !!user}
+								bind:value={passwd}
+							/>
+						</PasswordBar>
+						{#if passwdActive}
+							<div
+								transition:slide
+								class="absolute bottom-full mb-2 w-full rounded-md bg-card/50 py-2 outline-2 outline-muted backdrop-blur-md"
+							>
+								<PasswordChecklist
+									password={passwd}
+									bind:valid={passwdValid}
+									bind:processing={passwdProcessing}
+								/>
+							</div>
+						{/if}
+					</div>
 				</div>
 			</Card.Content>
 			<Card.Footer class="w-full flex-col flex-wrap gap-2">
@@ -113,7 +171,7 @@
 					variant="default"
 					class="w-full"
 					onclick={create}
-					disabled={!user || !passwd || !!error || loading}
+					disabled={!user || !passwd || !!error || loading || usernameProcesssing || passwdProcessing || !usernameValid || !passwdValid}
 				>
 					{#if loading}
 						<Spinner class="mr-2" />

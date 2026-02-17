@@ -9,7 +9,7 @@ import { usernameRegex } from '$lib';
 const createSchema = z.object({
 	username: z.string().regex(usernameRegex),
 	displayName: z.string().min(1).max(64).optional(),
-	password: z.string().min(8).max(128)
+	password: z.string().min(6).max(128)
 });
 
 export async function POST({ request, cookies }) {

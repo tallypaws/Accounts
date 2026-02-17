@@ -1,68 +1,68 @@
 <script lang="ts">
 	import { getUsernameRegex } from '$lib';
-	import { CheckIcon, CircleAlert, XIcon } from '@lucide/svelte';
+	import { CheckIcon, CircleAlert, Star, XIcon } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { Spinner } from './ui/spinner';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import { buttonVariants } from './ui/button';
 
 	let {
-		username,
+		password,
 		valid = $bindable(false),
 		processing = $bindable(false)
 	}: {
-		username: string;
+		password: string;
 		valid: boolean;
 		processing: boolean;
 	} = $props();
 
-	type RequirementState = 'met' | 'unmet' | 'checking' | 'error';
+	// reccomended is for things that you really should have but limits are lame, if you pick a bad password thats on you
+	type RequirementState = 'met' | 'unmet' | 'checking' | 'error' | 'recommended';
 
 	type Requirement = {
 		text: string;
 		fn: () => Promise<RequirementState> | RequirementState;
+		hidden?: boolean;
 	};
 
 	const requirements: Requirement[] = [
 		{
-			text: 'Must exist',
-			fn: () => (username.length >= 1 ? 'met' : 'unmet')
+			text: 'At least 6 characters',
+			fn: () => (password.length >= 6 ? 'met' : 'unmet')
 		},
 		{
-			text: 'At least 3 characters',
-			fn: () => (username.length >= 3 ? 'met' : 'unmet')
+			text: 'At least 8 characters',
+			fn: () => (password.length >= 8 ? 'met' : 'recommended')
 		},
 		{
-			text: 'No more than 32 characters',
-			fn: () => (username.length <= 32 ? 'met' : 'unmet')
+			text: 'At most 128 characters',
+			fn: () => (password.length <= 128 ? 'met' : 'unmet'),
+			// only show if fail
+			hidden: true
 		},
 		{
-			text: 'Only letters, numbers, underscores, hyphens, and periods',
-			fn: () => (getUsernameRegex({ lengthRequirements: false }).test(username) ? 'met' : 'unmet')
+			text: 'Contains uppercase letter',
+			fn: () => (/[A-Z]/.test(password) ? 'met' : 'recommended')
 		},
-		// // {
-		// // 	text: 'Cannot start or end with special characters',
-		// // 	fn: () => /^[a-zA-Z0-9].*[a-zA-Z0-9]$/.test(user)
-		// // },
-		// // {
-		// // 	text: 'No consecutive special characters',
-		// // 	fn: () => !/[._-]{2,}/.test(user)
-		// // },
-		// { text: 'Must contain at least one letter ', fn: () => /[a-zA-Z]/.test(user) },
 		{
-			text: 'Username is not already taken',
-			fn: async () => {
-				try {
-					return !(await userIsTaken(username)) ? 'met' : 'unmet';
-				} catch (error) {
-					return 'error';
-				}
-			}
+			text: 'Contains lowercase letter',
+			fn: () => (/[a-z]/.test(password) ? 'met' : 'recommended')
+		},
+		{
+			text: 'Contains number',
+			fn: () => (/\d/.test(password) ? 'met' : 'recommended')
+		},
+		{
+			text: 'Contains special character',
+			fn: () => (/[@$!%*?&]/.test(password) ? 'met' : 'recommended')
 		}
 	];
 
 	const requirementsMet = $state(
 		requirements.map((r) => ({
 			text: r.text,
-			met: 'unmet' as RequirementState
+			met: r.hidden ? ('hidden' as RequirementState) : ('unmet' as RequirementState),
+			hidden: r.hidden ?? false
 		}))
 	);
 
@@ -72,35 +72,11 @@
 	let interacted = $state(false);
 	let checkId = 0;
 
-	async function userIsTaken(username: string) {
-		// await new Promise((resolve) => setTimeout(resolve, 1000));
-		checkingUsername = true;
-		usernameTaken = false;
-		if (!username) {
-			return false;
-		}
-		try {
-			const res = await fetch(`/api/accounts/username-taken/${encodeURIComponent(username)}`);
-			if (!res.ok) {
-				throw new Error('Failed to check username');
-			}
-			const data = await res.json();
-			error = data.taken ? 'Username is already taken' : '';
-			usernameTaken = data.taken;
-			return data.taken;
-		} catch (e) {
-			console.error(e);
-			checkingUsername = false;
-			error = 'Error checking username availability';
-			return false;
-		} finally {
-			checkingUsername = false;
-		}
-	}
+
 
 	$effect(() => {
-		console.log('Checking username:', username);
-		if (username) {
+		console.log('Checking password:', password);
+		if (password) {
 			interacted = true;
 		}
 		// if (user.length >= 3) {
@@ -139,17 +115,21 @@
 		processing = false;
 	});
 
-	const isValid = $derived(requirementsMet.every((r) => r.met === 'met'));
+	const validList = ['met', 'recommended'];
+
+	const isValid = $derived(requirementsMet.every((r) => validList.includes(r.met)));
 
 	$effect(() => {
 		valid = isValid;
 	});
+
+	const hiddenAllowList = ['recommended', 'unmet'];
 </script>
 
-<div class="mx-4 mt-2 flex flex-col gap-2">
+<div class="mx-4 mt-2 flex flex-col">
 	{#each requirementsMet as req, index}
-		<div class="flex items-center gap-0" transition:slide={{ delay: index * 200 }}>
-			<div class="flex flex-row w-4">
+		{#if !(req.hidden && !hiddenAllowList.includes(req.met))}
+			<div class="mt-2 flex max-h-5! items-center gap-0 first:mt-0" transition:slide>
 				{#if req.met === 'met'}
 					<div transition:slide={{ axis: 'x' }}>
 						<CheckIcon class="h-4 w-4 text-green-500" />
@@ -162,13 +142,29 @@
 					<div transition:slide={{ axis: 'x' }}>
 						<CircleAlert class="h-4 w-4 text-red-500" />
 					</div>
+				{:else if req.met === 'recommended'}
+					<div transition:slide={{ axis: 'x' }}>
+						<Tooltip.Provider>
+							<Tooltip.Root>
+								<Tooltip.Trigger class=""><Star class="h-4 w-4 text-yellow-500" /></Tooltip.Trigger>
+								<Tooltip.Content>
+									<p class="text-[1.2em] font-semibold">Recommended</p>
+									<p>This item is recommended, but not required.</p>
+									<p>
+										I highly encourage you to follow this recommendation for better security, but it
+										is ultimately your choice.
+									</p>
+								</Tooltip.Content>
+							</Tooltip.Root>
+						</Tooltip.Provider>
+					</div>
 				{:else}
 					<div transition:slide={{ axis: 'x' }}>
 						<XIcon class="h-4 w-4 text-red-500" />
 					</div>
 				{/if}
+				<span class="ml-2 text-sm">{req.text}</span>
 			</div>
-			<span class="ml-2 text-sm">{req.text}</span>
-		</div>
+		{/if}
 	{/each}
 </div>

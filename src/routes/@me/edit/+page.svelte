@@ -141,6 +141,7 @@
 	import { slide } from 'svelte/transition';
 	import { goto } from '$app/navigation';
 	import UsernameChecklist from '$lib/components/UsernameChecklist.svelte';
+	import PasswordChecklist from '$lib/components/PasswordChecklist.svelte';
 
 	async function updateIdentites() {
 		const response = await fetch('/api/accounts/identities').then(json);
@@ -171,6 +172,10 @@
 	}
 
 	let passwd = $state('');
+	let passwdValid = $state(false);
+	let passwdProcessing = $state(false);
+	let passwdActive = $state(false);
+
 	let newPasswd = $state('');
 	const zxcvbnResult = $derived(zxcvbn(newPasswd));
 	let newPasswdConfirm = $state('');
@@ -288,8 +293,8 @@
 			clearInterval(intid);
 		};
 	});
-
 </script>
+
 <svelte:head>
 	<title>Edit Account</title>
 </svelte:head>
@@ -441,13 +446,26 @@
 									<Dialog.Content>
 										<h2 class="text-lg font-semibold">Add Password</h2>
 										<div class="flex flex-col gap-2">
-											<PasswordBar password={newPasswd}>
-												<Input type="password" placeholder="New Password" bind:value={newPasswd} />
-											</PasswordBar>
+											<div class="relative">
+												<PasswordBar password={newPasswd}>
+													<Input
+														type="password"
+														placeholder="Password"
+														invalid={passwdValid === false}
+														bind:value={newPasswd}
+													/>
+												</PasswordBar>
+
+												<PasswordChecklist
+													password={newPasswd}
+													bind:valid={passwdValid}
+													bind:processing={passwdProcessing}
+												/>
+											</div>
 											<Input
 												type="password"
 												placeholder="Confirm New Password"
-												invalid={newPasswd !== newPasswdConfirm}
+												invalid={newPasswd !== newPasswdConfirm || (!!newPasswdConfirm && passwdValid === false)}
 												bind:value={newPasswdConfirm}
 												invalidMessage="Passwords do not match"
 											/>
@@ -602,13 +620,22 @@
 											<h2 class="text-lg font-semibold">Change Password</h2>
 											<Input type="password" placeholder="Current Password" bind:value={passwd} />
 											<div class="flex flex-col gap-2">
-												<PasswordBar password={newPasswd}>
-													<Input
-														type="password"
-														placeholder="New Password"
-														bind:value={newPasswd}
+												<div class="relative">
+													<PasswordBar password={newPasswd}>
+														<Input
+															type="password"
+															placeholder="Password"
+															invalid={passwdValid === false}
+															bind:value={newPasswd}
+														/>
+													</PasswordBar>
+
+													<PasswordChecklist
+														password={newPasswd}
+														bind:valid={passwdValid}
+														bind:processing={passwdProcessing}
 													/>
-												</PasswordBar>
+												</div>
 												<Input
 													type="password"
 													placeholder="Confirm New Password"
@@ -766,7 +793,7 @@
 									title: 'Change username?',
 									description: `Your username will be changed to ${usernameChangeResult.username}. Your current username ${account.username} will be available for others to use.`,
 									confirmText: 'Change Username',
-									cancelText: 'Cancel',
+									cancelText: 'Cancel'
 								});
 								if (confirmationResult.confirmed) {
 									const response = await fetch('/api/accounts/username', {
